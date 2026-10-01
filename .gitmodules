@@ -1,0 +1,7 @@
+[submodule "donut"]
+	path = donut
+	url = git@github.com:HuazyYang/Donut.git
+	branch = ethereal-dev
+[submodule "etherealsamples"]
+	path = etherealsamples
+	url = git@github.com:HuazyYang/etherealsamples.git
