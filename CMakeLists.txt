@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.22)
 # ethereal is an aggregate of sub-projects, in the manner of DiligentEngine:
 #
 #   donut/             the graphics framework (git submodule; brings nvrhi, ShaderTool, glfw, imgui, ...)
-#   etherealsamples/   samples and benchmarks built on Donut (git submodule)
+#   ethereal-samples/  samples and benchmarks built on Donut (git submodule)
 #
 # This file configures the shared build environment and adds the sub-projects.
 
@@ -17,15 +17,14 @@ endif()
 
 project(ethereal VERSION 1.0 LANGUAGES ${ETHEREAL_LANGUAGES})
 
-option(ETHEREAL_BUILD_SAMPLES    "Build etherealsamples (src/)" ON)
-option(ETHEREAL_BUILD_BENCHMARKS "Build etherealsamples benchmarks (benchmark/)" ON)
+option(ETHEREAL_BUILD_SAMPLES    "Build ethereal-samples (src/)" ON)
+option(ETHEREAL_BUILD_BENCHMARKS "Build ethereal-samples benchmarks (benchmark/)" ON)
 
-# NOTE(migration): lithereal's root CMakeLists had an unconditional
-# `find_package(OptiX REQUIRED)`, but no migrated source file includes optix.h.
-# It is kept behind an option (default OFF) so that configuring this project does
-# not hard-require the OptiX SDK. Set -DETHEREAL_WITH_OPTIX=ON (plus
-# -DOptiX_INSTALL_DIR=<path>) once OptiX is actually used.
-option(ETHEREAL_WITH_OPTIX "Locate the OptiX SDK (cmake/FindOptiX.cmake)" OFF)
+# OptiX (header-only SDK) backs the ray tracing path of the GVDB samples. ON by default
+# because it is optional at configure time: when the SDK is not found the OptiX backend and
+# the OptiX samples are skipped. cmake/FindOptiX.cmake looks at OptiX_INSTALL_DIR (cache or
+# environment) and the default install location.
+option(ETHEREAL_WITH_OPTIX "Build the OptiX ray tracing backend of the GVDB samples when the SDK is found" ON)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -37,8 +36,16 @@ enable_testing()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-if (ETHEREAL_WITH_OPTIX)
-	find_package(OptiX REQUIRED)
+set(ETHEREAL_OPTIX_FOUND OFF)
+if (ETHEREAL_WITH_OPTIX AND ETHEREAL_BUILD_GVDB)
+	find_package(OptiX)
+	if (OptiX_INCLUDE)
+		set(ETHEREAL_OPTIX_FOUND ON)
+		message(STATUS "OptiX headers: ${OptiX_INCLUDE}")
+	else()
+		message(STATUS "OptiX SDK not found; the OptiX backend of the GVDB samples is disabled "
+			"(set OptiX_INSTALL_DIR to enable it)")
+	endif()
 endif()
 
 if (MSVC)
@@ -71,8 +78,8 @@ endif()
 add_subdirectory(donut)
 
 if (ETHEREAL_BUILD_SAMPLES OR ETHEREAL_BUILD_BENCHMARKS)
-	if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/etherealsamples/CMakeLists.txt")
-		message(FATAL_ERROR "etherealsamples is missing. Run: git submodule update --init --recursive")
+	if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ethereal-samples/CMakeLists.txt")
+		message(FATAL_ERROR "ethereal-samples is missing. Run: git submodule update --init --recursive")
 	endif()
-	add_subdirectory(etherealsamples)
+	add_subdirectory(ethereal-samples)
 endif()

@@ -2,6 +2,6 @@
 	path = donut
 	url = git@github.com:HuazyYang/Donut.git
 	branch = ethereal-dev
-[submodule "etherealsamples"]
-	path = etherealsamples
-	url = git@github.com:HuazyYang/etherealsamples.git
+[submodule "ethereal-samples"]
+	path = ethereal-samples
+	url = git@github.com:HuazyYang/ethereal-samples.git

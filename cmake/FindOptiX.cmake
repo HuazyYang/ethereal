@@ -30,7 +30,19 @@
 # Locate the OptiX distribution.  Search relative to the SDK first, then look in the system.
 
 # Our initial guess will be within the SDK.
-set(OptiX_INSTALL_DIR "${CMAKE_SOURCE_DIR}/../" CACHE PATH "Path to OptiX installed location.")
+# Default: the environment variable set by the SDK installer, else the newest default install.
+set(_optix_default "$ENV{OptiX_INSTALL_DIR}")
+if(NOT _optix_default AND WIN32)
+  file(GLOB _optix_candidates "$ENV{ProgramFiles}/NVIDIA GPU Computing Toolkit/OptiX SDK*")
+  if(_optix_candidates)
+    list(SORT _optix_candidates)
+    list(GET _optix_candidates -1 _optix_default)
+  endif()
+endif()
+if(NOT _optix_default)
+  set(_optix_default "${CMAKE_SOURCE_DIR}/../")
+endif()
+set(OptiX_INSTALL_DIR "${_optix_default}" CACHE PATH "Path to OptiX installed location.")
 
 # The distribution contains only 64 bit libraries.  Error when we have been mis-configured.
 if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)

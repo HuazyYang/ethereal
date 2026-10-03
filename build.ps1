@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-Configures and builds ethereal (donut + etherealsamples) with CMake and Ninja Multi-Config.
+Configures and builds ethereal (donut + ethereal-samples) with CMake and Ninja Multi-Config.
 
 .DESCRIPTION
 Sets up the Visual Studio developer environment when cl.exe is not on PATH (a bare shell has no
@@ -28,7 +28,7 @@ $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 
 # --- sources ---------------------------------------------------------------------------------
-foreach ($sub in 'donut\CMakeLists.txt', 'etherealsamples\CMakeLists.txt') {
+foreach ($sub in 'donut\CMakeLists.txt', 'ethereal-samples\CMakeLists.txt') {
     if (-not (Test-Path $sub)) {
         Write-Host 'Initialising submodules ...'
         git submodule update --init --recursive

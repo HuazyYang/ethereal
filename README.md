@@ -5,7 +5,7 @@ An aggregate of sub-projects, laid out like DiligentEngine:
 | Directory | Content |
 |---|---|
 | `donut/` | Graphics framework (git submodule, branch `ethereal-dev`); brings nvrhi, ShaderTool, glfw, imgui, ... |
-| `etherealsamples/` | Samples and benchmarks built on Donut (git submodule): DDGI, VXGI, GVDB, the Donut examples, `benchmark/Asteroids` |
+| `ethereal-samples/` | Samples and benchmarks built on Donut (git submodule): DDGI, VXGI, GVDB, the Donut examples, `benchmark/Asteroids` |
 | `cmake/` | Shared CMake helpers: `ethereal_compile_shaders()`, `copy_assets()`, `FindOptiX` |
 | `CMakeLists.txt`, `CMakePresets.json`, `build.ps1` | The aggregate build |
 
@@ -31,8 +31,8 @@ compiler cannot find the standard headers.
 
 | CMake option | Default | |
 |---|---|---|
-| `ETHEREAL_BUILD_SAMPLES` | ON | `etherealsamples/src` |
-| `ETHEREAL_BUILD_BENCHMARKS` | ON | `etherealsamples/benchmark` (needs `fxc.exe` from the Windows SDK) |
+| `ETHEREAL_BUILD_SAMPLES` | ON | `ethereal-samples/src` |
+| `ETHEREAL_BUILD_BENCHMARKS` | ON | `ethereal-samples/benchmark` (needs `fxc.exe` from the Windows SDK) |
 | `ETHEREAL_BUILD_GVDB` | OFF | GVDB samples; enables the CUDA language |
 | `ETHEREAL_WITH_OPTIX` | OFF | locate the OptiX SDK |
 | `ASTEROIDS_MATCH_CODEGEN` | ON | apply the benchmark's Release code generation (`/GL /arch:AVX2 ...`) to all of Donut |
