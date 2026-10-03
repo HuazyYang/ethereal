@@ -32,7 +32,7 @@
 # set by the module in the directory scope that first includes it. The module has
 # include_guard(GLOBAL), so including it from the root scope *before* Donut's
 # subdirectories do makes the variable visible to every directory below the root.
-include("${ETHEREAL_DONUT_DIR}/thirdparty/shadertool/cmake/ShaderToolFunctions.cmake")
+include("${ETHEREAL_DONUT_DIR}/thirdparty/shader-tool/cmake/ShaderToolFunctions.cmake")
 
 function(ethereal_compile_shaders)
     cmake_parse_arguments(arg
