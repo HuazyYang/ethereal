@@ -20,6 +20,12 @@ project(ethereal VERSION 1.0 LANGUAGES ${ETHEREAL_LANGUAGES})
 option(ETHEREAL_BUILD_SAMPLES    "Build ethereal-samples (src/)" ON)
 option(ETHEREAL_BUILD_BENCHMARKS "Build ethereal-samples benchmarks (benchmark/)" ON)
 
+# nv_asteroids (ethereal-samples/demos/nv_asteroids) reconstructs the 2018 NVIDIA
+# Asteroids demo. It is opt-in because it only configures with the original
+# installed: it reads the original's media.db and links the DLLs it shipped.
+# Point NV_ASTEROIDS_ORIGINAL_DIR at that installation.
+option(ETHEREAL_BUILD_NV_ASTEROIDS "Build the nv_asteroids demo (needs NV_ASTEROIDS_ORIGINAL_DIR)" OFF)
+
 # OptiX (header-only SDK) backs the ray tracing path of the GVDB samples. ON by default
 # because it is optional at configure time: when the SDK is not found the OptiX backend and
 # the OptiX samples are skipped. cmake/FindOptiX.cmake looks at OptiX_INSTALL_DIR (cache or
@@ -71,6 +77,25 @@ include(EtherealShaders)
 # Donut defaults for this aggregate (overridable with -D on the command line). KTX2 loading makes
 # Donut fetch zstd from GitHub at configure time, and no sample uses it.
 set(DONUT_WITH_KTX OFF CACHE BOOL "Build KTX2 (BCn + Zstandard) texture loading support")
+
+# nv_asteroids needs NVAPI: the 2018 demo built its Turing mesh-shader PSOs
+# through NvAPI_D3D12_CreateGraphicsPipelineState, and the demo reproduces that
+# path (it is the default when the 2018 NVAPI check passes; -meshShaders d3d12
+# selects SM 6.5 amplification/mesh shaders instead). nvrhi is configured here
+# because Donut adds it below, before ethereal-samples is reached.
+if (ETHEREAL_BUILD_NV_ASTEROIDS)
+	set(ETHEREAL_NVAPI_SDK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ethereal-samples/demos/nv_asteroids/external/nvapi"
+		CACHE PATH "NVAPI SDK (nvapi.h, amd64/nvapi64.lib)")
+	if (EXISTS "${ETHEREAL_NVAPI_SDK_DIR}/nvapi.h")
+		set(NVRHI_WITH_NVAPI ON CACHE BOOL "" FORCE)
+		set(NVAPI_INCLUDE_DIR "${ETHEREAL_NVAPI_SDK_DIR}" CACHE PATH "" FORCE)
+		set(NVAPI_LIBRARY "${ETHEREAL_NVAPI_SDK_DIR}/amd64/nvapi64.lib" CACHE FILEPATH "" FORCE)
+	else()
+		message(WARNING "NVAPI SDK not found at ${ETHEREAL_NVAPI_SDK_DIR} "
+			"(run: git submodule update --init --recursive). nv_asteroids will build without the "
+			"2018 NVAPI mesh-shader path.")
+	endif()
+endif()
 
 if (NOT EXISTS "${ETHEREAL_DONUT_DIR}/CMakeLists.txt")
 	message(FATAL_ERROR "donut is missing. Run: git submodule update --init --recursive")
