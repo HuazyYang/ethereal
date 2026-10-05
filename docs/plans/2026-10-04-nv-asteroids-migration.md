@@ -237,12 +237,22 @@ build and 11.89 ms for the original 2018 executable on the same GPU.
 
 Discarded as throttled: recon 17.99 ms, ported 12.69 ms (both the second run of a back-to-back pair).
 
-The series above was taken with the reflection on the view matrix (`4c487a8`). The left-handed
-pipeline was not re-timed under controlled conditions: other workloads were running on the machine,
-and the runs taken then are not comparable (ported 13.38 ms, recon 12.19 ms, ported 42.30 ms, in that
-order, minutes apart). It adds no GPU work (the shaders are byte-identical and world-to-clip is
-unchanged), and its CPU cost per frame is a projection-row negation, two magnitude reads and two 4x4
-multiplies for HBAO+, so the series above stands for it; a re-run on an idle machine would confirm.
+**Left-handed pipeline (`c73f4bb`), re-timed on an idle machine** (CPU 4-12 %, GPU idle, one instance
+at a time, 90 s cooldown before each run, order alternated):
+
+| build | runs (ms) | mean |
+| --- | --- | --- |
+| recon (vanilla donut `main`) | 11.29, 11.32, 11.36 | **11.32 ms** (88.4 FPS) |
+| ported, left-handed (donut/nvrhi `ethereal-dev`) | 11.36, 11.29, 11.35 | **11.33 ms** (88.2 FPS) |
+
+The difference is +0.1 %, well inside the spread of either build (0.07 ms). None of the six runs was
+throttled, and the workload was identical (264,323 asteroids; ~4.03 M drawn triangles). The
+reflection moved from the view matrix into the projection and costs nothing measurable: no GPU work
+was added (the shaders are byte-identical and world-to-clip is unchanged), and the CPU side adds a
+projection-row negation, a few magnitude reads and two 4x4 multiplies for HBAO+ per frame. An earlier
+attempt on a loaded machine (13.38, 12.19 and 42.30 ms) is not comparable and is not used.
+
+The series before it was taken with the reflection on the view matrix (`4c487a8`).
 
 Per-pass GPU times at view 0 (`-gpuProfile`, GPU timer queries, mean over 1000 frames):
 
@@ -256,7 +266,7 @@ Per-pass GPU times at view 0 (`-gpuProfile`, GPU timer queries, mean over 1000 f
 | Fog | 1.30 | 1.42 |
 
 **The latest Donut and nvrhi introduce no overhead**: the ported build is within 0.2 % of the
-pre-port build on the deterministic replay, and its shaders are byte-identical, so the GPU work is
+pre-port build on the deterministic replay, before and after the move to the left-handed pipeline, and its shaders are byte-identical, so the GPU work is
 the same by construction. (The per-pass table was taken before the camera fix, while inverted
 backface culling still inflated the ported build's rasterisation; it is kept as the record of how
 that defect was found, and the replay figures above are the result that stands.)
