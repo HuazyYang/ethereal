@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.22)
 
 # ethereal is an aggregate of sub-projects, in the manner of DiligentEngine:
 #
-#   donut/             the graphics framework (git submodule; brings nvrhi, ShaderTool, glfw, imgui, ...)
+#   ethereal-donut/             the graphics framework (git submodule; brings nvrhi, ShaderTool, glfw, imgui, ...)
 #   ethereal-samples/  samples and benchmarks built on Donut (git submodule)
 #
 # This file configures the shared build environment and adds the sub-projects.
@@ -70,7 +70,7 @@ set(DONUT_SHADERS_OUTPUT_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders/framewor
 # Helpers shared by every sub-project: copy_assets() and ethereal_compile_shaders().
 # EtherealShaders.cmake includes ShaderTool's function module here, in the root scope,
 # which is what makes shadertool_add_shader_objects() usable from any sub-directory.
-set(ETHEREAL_DONUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/donut")
+set(ETHEREAL_DONUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ethereal-donut")
 include(CopyAssets)
 include(EtherealShaders)
 
@@ -100,7 +100,7 @@ endif()
 if (NOT EXISTS "${ETHEREAL_DONUT_DIR}/CMakeLists.txt")
 	message(FATAL_ERROR "donut is missing. Run: git submodule update --init --recursive")
 endif()
-add_subdirectory(donut)
+add_subdirectory(ethereal-donut)
 
 if (ETHEREAL_BUILD_SAMPLES OR ETHEREAL_BUILD_BENCHMARKS)
 	if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ethereal-samples/CMakeLists.txt")

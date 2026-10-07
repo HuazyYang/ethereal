@@ -4,7 +4,7 @@ An aggregate of sub-projects, laid out like DiligentEngine:
 
 | Directory | Content |
 |---|---|
-| `donut/` | Graphics framework (git submodule, branch `ethereal-dev`); brings nvrhi, ShaderTool, glfw, imgui, ... |
+| `ethereal-donut/` | Graphics framework (git submodule, branch `ethereal-dev`); brings nvrhi, ShaderTool, glfw, imgui, ... |
 | `ethereal-samples/` | Samples and benchmarks built on Donut (git submodule): DDGI, VXGI, GVDB, the Donut examples, `benchmark/Asteroids` |
 | `cmake/` | Shared CMake helpers: `ethereal_compile_shaders()`, `copy_assets()`, `FindOptiX` |
 | `CMakeLists.txt`, `CMakePresets.json`, `build.ps1` | The aggregate build |

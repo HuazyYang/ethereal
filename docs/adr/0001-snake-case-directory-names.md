@@ -8,7 +8,7 @@
 `docs/conventions/naming.md` required directory names to be `kebab-case`:
 
 > Directory names **must** be `kebab-case`: lowercase words separated by hyphens.
-> Good: `shader-tools`, `render-passes` â€” Bad: `shaderTools`, `Render_Passes`, `RenderPasses`
+> Good: `shader-tools`, `render-passes` â€?Bad: `shaderTools`, `Render_Passes`, `RenderPasses`
 
 In practice almost every directory in the three first-party trees is a single lowercase word, where
 `kebab-case` and `snake_case` are indistinguishable: `core`, `engine`, `render`, `app`, `shaders`,
@@ -17,8 +17,8 @@ and only four directories in the whole tree actually contain a separator:
 
 | Directory | Note |
 | --- | --- |
-| `donut/thirdparty/shader-tool` | Submodule path; also the upstream repository name `HuazyYang/shader-tool`. Renamed from `shadertool` very recently (donut `d4e24c0`, `ca08c03`; aggregate `1e90a72`, `3d175c3`). |
-| `donut/thirdparty/jsoncpp-amalgam` | Third-party source drop, upstream spelling. |
+| `ethereal-donut/thirdparty/shader-tool` | Submodule path; also the upstream repository name `HuazyYang/shader-tool`. Renamed from `shadertool` very recently (donut `d4e24c0`, `ca08c03`; aggregate `1e90a72`, `3d175c3`). |
+| `ethereal-donut/thirdparty/jsoncpp-amalgam` | Third-party source drop, upstream spelling. |
 | `ethereal-samples` | Submodule path; also the repository name. Referenced from the aggregate's `.gitmodules`. |
 | `.vscode/vscode-cpptools` | Editor-generated. |
 
@@ -33,7 +33,7 @@ forced the question before the inconsistency was duplicated.
 
 ## Decision
 
-Directory names in `ethereal`, `donut` and `donut/nvrhi` **must** be `snake_case`: lowercase words
+Directory names in `ethereal`, `ethereal-donut` and `ethereal-donut/ethereal-nvrhi` **must** be `snake_case`: lowercase words
 separated by underscores.
 
 A single compound word conventionally written without a break takes no underscore: `framebuffer`,
@@ -44,7 +44,7 @@ are recorded in `docs/conventions/naming.md` as deliberate exceptions, so that a
 mistake them for drift or cite them as precedent.
 
 File naming is unchanged: `kebab-case`, `snake_case` or `PascalCase`, never `camelCase`, one consistent
-style per directory. Directory and file naming are independent questions â€” an `adr/` directory
+style per directory. Directory and file naming are independent questions â€?an `adr/` directory
 containing `0001-snake-case-directory-names.md` satisfies both rules.
 
 ## Consequences
@@ -81,7 +81,7 @@ containing `0001-snake-case-directory-names.md` satisfies both rules.
   grounds; it would have entrenched the inconsistency in the largest new subsystem.
 - **Adopt `snake_case` and rename all four existing directories.** Rejected: `shader-tool` and
   `ethereal-samples` are submodule paths and repository names, so renaming them touches `.gitmodules`
-  in two repositories, the aggregate's CMake paths and the remotes themselves â€” a large, risky change
+  in two repositories, the aggregate's CMake paths and the remotes themselves â€?a large, risky change
   with no functional benefit. `shader-tool` had also just been renamed *to* that spelling, so renaming
   it again would churn the same paths twice in short succession.
 - **Allow either style.** Rejected: a convention document that permits both constrains nothing, which
@@ -90,7 +90,7 @@ containing `0001-snake-case-directory-names.md` satisfies both rules.
 ## References
 
 - Files: `docs/conventions/naming.md`.
-- Related: `donut/doc/adr/0001-framegraph-for-donut-render-passes.md` (the work that raised the
+- Related: `ethereal-donut/doc/adr/0001-framegraph-for-donut-render-passes.md` (the work that raised the
   question).
 - Prior renames that produced the `shader-tool` exception: donut `d4e24c0`, `ca08c03`; aggregate
   `1e90a72`, `3d175c3`.

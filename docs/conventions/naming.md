@@ -5,7 +5,7 @@
 ### 1.1 Directories
 
 Directory names **must** be `snake_case`: lowercase words separated by underscores. This applies to
-the `ethereal` aggregate, `donut` and `nvrhi`.
+the `ethereal` aggregate, `ethereal-donut` and `nvrhi`.
 
 - Good: `shader_tools`, `render_passes`, `framegraph`
 - Bad: `shaderTools`, `Render_Passes`, `RenderPasses`, `render-passes`
@@ -18,8 +18,8 @@ unchanged; do not treat them as precedent:
 
 | Directory | Why it stays |
 | --- | --- |
-| `donut/thirdparty/shader-tool` | A submodule path and the upstream repository name (`HuazyYang/shader-tool`). Renaming it would churn `.gitmodules` and the CMake paths that reference it. |
-| `donut/thirdparty/jsoncpp-amalgam` | Third-party source drop; keeps its upstream spelling. |
+| `ethereal-donut/thirdparty/shader-tool` | A submodule path and the upstream repository name (`HuazyYang/shader-tool`). Renaming it would churn `.gitmodules` and the CMake paths that reference it. |
+| `ethereal-donut/thirdparty/jsoncpp-amalgam` | Third-party source drop; keeps its upstream spelling. |
 | `ethereal-samples` | A submodule path and the repository name, referenced from the aggregate's `.gitmodules`. |
 
 See [`../adr/0001-snake-case-directory-names.md`](../adr/0001-snake-case-directory-names.md).

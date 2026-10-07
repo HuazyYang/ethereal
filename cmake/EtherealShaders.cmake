@@ -25,7 +25,7 @@
 # ALL_PLATFORMS; each is dropped if Donut was configured without that API
 # (DONUT_WITH_DX11 / DONUT_WITH_DX12 / DONUT_WITH_VULKAN).
 #
-# Must be called after add_subdirectory(donut) so that ShaderTool::ShaderTool and
+# Must be called after add_subdirectory(ethereal-donut) so that ShaderTool::ShaderTool and
 # DONUT_SHADER_INCLUDE_DIR exist.
 
 # shadertool_add_shader_objects() reads _SHADERTOOL_ALL_BACKENDS, a plain variable

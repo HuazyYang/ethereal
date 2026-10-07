@@ -10,13 +10,13 @@ the code looks the way it does. Implementation plans and their execution logs li
 work was carried out.
 
 Each repository numbers its ADRs from `0001` independently. Cross-repository references are by path,
-for example `donut/nvrhi/doc/adr/0008-aliasing-barriers-for-virtual-resources.md`.
+for example `ethereal-donut/ethereal-nvrhi/doc/adr/0008-aliasing-barriers-for-virtual-resources.md`.
 
 | Repository | Folder |
 | --- | --- |
 | aggregate (this one) | `docs/adr`, `docs/plans` |
-| `donut` | `donut/doc/adr`, `donut/doc/plans` |
-| `donut/nvrhi` | `donut/nvrhi/doc/adr`, `donut/nvrhi/doc/plans` |
+| `ethereal-donut` | `ethereal-donut/doc/adr`, `ethereal-donut/doc/plans` |
+| `ethereal-donut/ethereal-nvrhi` | `ethereal-donut/ethereal-nvrhi/doc/adr`, `ethereal-donut/ethereal-nvrhi/doc/plans` |
 | `ethereal-samples` | `ethereal-samples/doc/adr`, `ethereal-samples/doc/plans` |
 
 ## When to write one

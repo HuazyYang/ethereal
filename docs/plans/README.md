@@ -12,8 +12,8 @@ A plan for work confined to one repository belongs in that repository's `doc/pla
 
 ## When to write one
 
-Write a plan for work that spans several commits or repositories (the aggregate, `donut`,
-`donut/nvrhi`, `ethereal-samples`), or that needs a reviewed order of steps so that every commit still
+Write a plan for work that spans several commits or repositories (the aggregate, `ethereal-donut`,
+`ethereal-donut/ethereal-nvrhi`, `ethereal-samples`), or that needs a reviewed order of steps so that every commit still
 builds.
 
 ## File names
@@ -58,5 +58,5 @@ Keep local user paths, machine names and credentials out of plans. Use repositor
 
 | Plan | Status | ADRs |
 | --- | --- | --- |
-| [2026-10-04-framegraph.md](2026-10-04-framegraph.md) | Draft | root [0001](../adr/0001-snake-case-directory-names.md); donut [0001](../../donut/doc/adr/0001-framegraph-for-donut-render-passes.md) |
+| [2026-10-04-framegraph.md](2026-10-04-framegraph.md) | Draft | root [0001](../adr/0001-snake-case-directory-names.md); donut [0001](../../ethereal-donut/doc/adr/0001-framegraph-for-donut-render-passes.md) |
 | [2026-10-04-nv-asteroids-migration.md](2026-10-04-nv-asteroids-migration.md) | Done | ethereal-samples [0001](../../ethereal-samples/doc/adr/0001-nv-asteroids-on-the-ethereal-dev-object-model.md) |

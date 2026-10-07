@@ -4,7 +4,7 @@
 - Approved: 2026-10-04
 - Completed: 2026-10-05
 
-Repositories: `ethereal` (this one), `ethereal-samples`, `donut`. The plan was kept in
+Repositories: `ethereal` (this one), `ethereal-samples`, `ethereal-donut`. The plan was kept in
 `ethereal-samples/doc/plans` while the work was in progress and moved here on completion, since it
 spans all three. The design decisions are in `ethereal-samples` ADR 0001
 (`ethereal-samples/doc/adr/0001-nv-asteroids-on-the-ethereal-dev-object-model.md`).
@@ -17,7 +17,7 @@ spans all three. The design decisions are in `ethereal-samples` ADR 0001
 six camera presets and runs 1.4 % faster than the original on the reference GPU.
 
 This work moves that project into `ethereal-samples/demos/nv_asteroids` and ports it to the framework the
-aggregate actually ships: **`donut/ethereal-dev`** (`d4e24c0`) with **`nvrhi/ethereal-dev`** (`0734789`).
+aggregate actually ships: **`ethereal-donut/ethereal-dev`** (`d4e24c0`) with **`nvrhi/ethereal-dev`** (`0734789`).
 That is not a version bump but an object-model change:
 
 | Vanilla donut `main` | `ethereal-dev` |
@@ -35,7 +35,7 @@ The demo derives from eight donut types (`ApplicationBase`, `IDrawStrategy`, `IG
 interface table. 19 k lines of demo C++ across 115 files use the affected idioms (364 `shared_ptr`,
 96 `make_shared`).
 
-Both requirements of the task â€” PSNR against the 2018 original and no performance overhead â€” are therefore
+Both requirements of the task â€?PSNR against the 2018 original and no performance overhead â€?are therefore
 measurements of **the ported demo against the `recon` build**, which is kept as the baseline.
 
 ## Steps
@@ -45,10 +45,10 @@ All work happens in git worktrees so the `framegraph` tree is untouched:
 | Worktree | Repository | Branch |
 | --- | --- | --- |
 | `ethereal-nv-asteroids/` | `ethereal` | `nv_asteroids` off `framegraph` |
-| `ethereal-nv-asteroids/donut/` | `Donut` | `nv_asteroids` off `origin/ethereal-dev` |
+| `ethereal-nv-asteroids/ethereal-donut/` | `Donut` | `nv_asteroids` off `origin/ethereal-dev` |
 | `ethereal-nv-asteroids/ethereal-samples/` | `ethereal-samples` | `nv_asteroids` off `framegraph` |
 
-`donut`'s own submodules (`nvrhi`, `thirdparty/*`) are worktrees of their pinned commits, because git
+`ethereal-donut`'s own submodules (`nvrhi`, `thirdparty/*`) are worktrees of their pinned commits, because git
 shares a submodule's git directory between worktrees and a plain `submodule update` would move the
 `framegraph` tree's checkout as well.
 
@@ -85,7 +85,7 @@ shares a submodule's git directory between worktrees and a plain `submodule upda
 
 | Step | Repository | Commit | Notes |
 | --- | --- | --- | --- |
-| Worktrees | â€” | â€” | `ethereal-nv-asteroids/` (branch `nv_asteroids` off `framegraph`), with worktrees of `Donut` at `origin/ethereal-dev` and of `ethereal-samples` off `framegraph`. Donut's own submodules are worktrees of their pinned commits, because git shares a submodule's git directory between worktrees. |
+| Worktrees | â€?| â€?| `ethereal-nv-asteroids/` (branch `nv_asteroids` off `framegraph`), with worktrees of `Donut` at `origin/ethereal-dev` and of `ethereal-samples` off `framegraph`. Donut's own submodules are worktrees of their pinned commits, because git shares a submodule's git directory between worktrees. |
 | 1. Import | ethereal-samples | `eac2f4b` | The 271 tracked source files of `recon`, laid out as planned. `assets/` (4.9 GB) is generated and was not carried over. recon's root `CMakeLists.txt` was dropped: it only set aggregate-level Donut options, which the ethereal root owns. |
 | 2+4. Shaders and build | ethereal-samples | `4305dba` | The two ShaderTool configs and the whole CMake layer, in one commit: the shader build cannot be verified without the targets that drive it. |
 | | ethereal | `008f850` | `ETHEREAL_BUILD_NV_ASTEROIDS`, the NVAPI wiring, and the Donut submodule moved to the `ethereal-dev` tip. |
@@ -115,7 +115,7 @@ shares a submodule's git directory between worktrees and a plain `submodule upda
 
 Donut's camera builds a left-handed (D3D) basis: `right = cross(up, dir)`, so that
 `cross(right, up) = dir` with +Z forward. The donut `main` the reconstruction was written against
-built `right = cross(dir, up)` â€” the same basis with the right vector negated, a historical slip
+built `right = cross(dir, up)` â€?the same basis with the right vector negated, a historical slip
 that `ethereal-dev` corrected. The 2018 demo's content, shaders and lighting constants were authored
 and verified in that older, mirrored view space, so moving to Donut's camera is a handedness swap
 and part of the port, not a framework difference to work around.
@@ -124,7 +124,7 @@ The render pipeline is left-handed throughout
 (`ethereal-samples/demos/nv_asteroids/src/app/RenderHandedness.h`):
 
 - **View space is Donut's.** Every `engine::IView` carries the camera's matrix unchanged, so all
-  view-space work â€” the G-buffer pass, deferred lighting, fog, the shadow-cascade fit â€” runs in the
+  view-space work â€?the G-buffer pass, deferred lighting, fog, the shadow-cascade fit â€?runs in the
   left-handed view space, and `IView::IsMirrored()` is false for the main view.
 - **The content's handedness is reconciled once, in the projection.** Because the 2018 content was
   authored through the mirrored camera and Donut's camera is a proper rotation, one reflection has to
@@ -169,10 +169,10 @@ achievable ceiling is the original's own PSNR between its two captures, and it i
   Release and RelWithDebInfo with no errors.
 - All 56 compiled shader blobs are **byte-identical** to the recon build's, so the move from
   ShaderMake to ShaderTool is a provable no-op for both image and timing.
-- `nv_asteroids_asset_check media.db`: **170 files, 0 failures** â€” every `.chk` LOD loads through the
+- `nv_asteroids_asset_check media.db`: **170 files, 0 failures** â€?every `.chk` LOD loads through the
   ported SQLite / decrypt / LZ4 / chunk path.
 
-### Image â€” AA off (`-aa 0`), frame 6000
+### Image â€?AA off (`-aa 0`), frame 6000
 
 Left-handed pipeline (`c73f4bb`). Scoring as recon's `aa0table.py`: the better of the original's two
 captures.
@@ -187,7 +187,7 @@ captures.
 | 5 | 32.9 dB | 34.9 dB | 35.0 dB | 40.5 dB |
 | **mean** | **41.6 dB** | **40.6 dB** | **40.6 dB** | **79.1 dB** |
 
-### Image â€” default mode (2018 TAA), frames 6000..6007, best of the 8 jitter phases
+### Image â€?default mode (2018 TAA), frames 6000..6007, best of the 8 jitter phases
 
 Scoring as recon's `taatable.py`: for each of the original's two captures the best-matching jitter
 phase, averaged.
@@ -219,7 +219,7 @@ Reading these:
   gap is not attributable to the matrix change itself; it did not reproduce in this set, and the
   likelier cause is the timing sensitivity of frame-indexed captures of a wall-clock-animated scene.
 
-### Performance â€” `-nodialog -benchmark` (replay.0.json, 8504 frames, unthrottled)
+### Performance â€?`-nodialog -benchmark` (replay.0.json, 8504 frames, unthrottled)
 
 Both builds report the same "Average frame time" counter over the same workload (264,323 asteroids;
 ~4.03 M drawn triangles). Runs are spaced and alternated; this laptop enters a throttled state under
@@ -229,7 +229,7 @@ are discarded and repeated, as recon did.
 | build | healthy runs (ms) | mean |
 | --- | --- | --- |
 | recon (vanilla donut `main`) | 11.63, 11.30, 11.34 | **11.42 ms** (87.6 FPS) |
-| ported (donut/nvrhi `ethereal-dev`) | 11.51, 11.38, 11.32 | **11.40 ms** (87.7 FPS) |
+| ported (ethereal-donut/ethereal-nvrhi `ethereal-dev`) | 11.51, 11.38, 11.32 | **11.40 ms** (87.7 FPS) |
 
 The ported build is 0.2 % faster, which is inside the run-to-run spread of either build
 (recon 11.30-11.63, ported 11.32-11.51). For reference, recon's README records 11.72 ms for this
@@ -243,7 +243,7 @@ at a time, 90 s cooldown before each run, order alternated):
 | build | runs (ms) | mean |
 | --- | --- | --- |
 | recon (vanilla donut `main`) | 11.29, 11.32, 11.36 | **11.32 ms** (88.4 FPS) |
-| ported, left-handed (donut/nvrhi `ethereal-dev`) | 11.36, 11.29, 11.35 | **11.33 ms** (88.2 FPS) |
+| ported, left-handed (ethereal-donut/ethereal-nvrhi `ethereal-dev`) | 11.36, 11.29, 11.35 | **11.33 ms** (88.2 FPS) |
 
 The difference is +0.1 %, well inside the spread of either build (0.07 ms). None of the six runs was
 throttled, and the workload was identical (264,323 asteroids; ~4.03 M drawn triangles). The

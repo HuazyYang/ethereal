@@ -17,18 +17,18 @@ execution order, resource allocation (including memory aliasing), barriers and i
 
 The design decisions are recorded separately:
 
-- [`donut/doc/adr/0001-framegraph-for-donut-render-passes.md`](../../donut/doc/adr/0001-framegraph-for-donut-render-passes.md)
-  â€” placement in `donut_render`, the declaration model, the pass lifecycle, and why the public headers
+- [`ethereal-donut/doc/adr/0001-framegraph-for-donut-render-passes.md`](../../ethereal-donut/doc/adr/0001-framegraph-for-donut-render-passes.md)
+  â€?placement in `donut_render`, the declaration model, the pass lifecycle, and why the public headers
   follow the nvrhi ABI rules although the rest of donut does not.
-- donut ADR 0002 (to be written in step 1) â€” resource lifetimes, residency classes, pooling and memory
+- donut ADR 0002 (to be written in step 1) â€?resource lifetimes, residency classes, pooling and memory
   aliasing.
-- donut ADR 0003 (step 3) â€” pass adapters over the existing render passes.
-- donut ADR 0004 (step 6) â€” conditional passes and iterated subgraphs.
-- donut ADR 0005 (step 8) â€” queues and cross-queue synchronization.
-- donut ADR 0006 (step 2, accepted at step 5) â€” introspection and debug switches as a supported
+- donut ADR 0003 (step 3) â€?pass adapters over the existing render passes.
+- donut ADR 0004 (step 6) â€?conditional passes and iterated subgraphs.
+- donut ADR 0005 (step 8) â€?queues and cross-queue synchronization.
+- donut ADR 0006 (step 2, accepted at step 5) â€?introspection and debug switches as a supported
   contract.
-- nvrhi ADR 0008 (step 7) â€” aliasing barriers for virtual resources.
-- [`../adr/0001-snake-case-directory-names.md`](../adr/0001-snake-case-directory-names.md) â€” the
+- nvrhi ADR 0008 (step 7) â€?aliasing barriers for virtual resources.
+- [`../adr/0001-snake-case-directory-names.md`](../adr/0001-snake-case-directory-names.md) â€?the
   directory-naming change this work prompted.
 
 Scope confirmed before planning: all four goals (declarative pass wiring, automatic resource
@@ -47,7 +47,7 @@ These were verified against the tree and shape the steps below.
 `CommandQueue`, `CommandListParameters::queueType`, `executeCommandLists`, `queueWaitForCommandList`
 and `createCommandListLifetimeTracker`, and `ethereal-samples/src/async_compute` already demonstrates
 the pattern. Profiling has `beginMarker`/`endMarker` and the timer-query API. But a search of
-`donut/nvrhi/include` for "alias" matches only `antialiasedLineEnable`: **there is no aliasing
+`ethereal-donut/ethereal-nvrhi/include` for "alias" matches only `antialiasedLineEnable`: **there is no aliasing
 barrier**, which is why step 7 forks nvrhi.
 
 **The cheap substitute for an aliasing barrier is incorrect, not merely noisy.** Transitioning a
@@ -86,8 +86,8 @@ FrameGraph tests and passes. Every verification command below passes the option 
 verification results must state the expected test count so that a short run is a failure rather than a
 pass.
 
-**donut's test harness is not GTest.** `donut/tests/` builds one executable per `test_*.cpp`, each with
-a hand-written `main()` using the `CHECK` macro from `donut/tests/include/donut/tests/utils.h`. GTest
+**donut's test harness is not GTest.** `ethereal-donut/tests/` builds one executable per `test_*.cpp`, each with
+a hand-written `main()` using the `CHECK` macro from `ethereal-donut/tests/include/ethereal-donut/tests/utils.h`. GTest
 appears only in nvrhi's tests, behind an optional `find_package`. New tests follow donut's style.
 There is also no `test-render.cmake` yet; step 1 adds one.
 
@@ -98,9 +98,9 @@ switches in step 2 are a blocking prerequisite for the comparison in Verificatio
 ### Branching
 
 A git worktree cannot be used for this tree. Submodule gitdirs live under the shared common directory
-(`.git/modules/donut`, `.git/modules/donut/modules/nvrhi`) and each pins a single `core.worktree` path,
+(`.git/modules/donut`, `.git/modules/ethereal-donut/modules/nvrhi`) and each pins a single `core.worktree` path,
 so a second worktree plus `git submodule update` rewrites that path and breaks the submodules in the
-original checkout; the two checkouts cannot hold `donut` and `nvrhi` on different branches at once.
+original checkout; the two checkouts cannot hold `ethereal-donut` and `nvrhi` on different branches at once.
 
 The work therefore proceeds on a branch named `framegraph` in all four repositories, in place. This is
 a deliberate exception to the usual practice of committing directly to the working branch, made for
@@ -110,7 +110,7 @@ Commit order within every step is forced by the submodule nesting, and each subm
 before its parent can record the new SHA:
 
 ```
-donut/nvrhi  ->  donut (bumps nvrhi)  ->  ethereal-samples  ->  aggregate (bumps donut, ethereal-samples)
+ethereal-donut/ethereal-nvrhi  ->  donut (bumps nvrhi)  ->  ethereal-samples  ->  aggregate (bumps donut, ethereal-samples)
 ```
 
 Only step 7 touches nvrhi, so most steps are donut, then ethereal-samples, then the aggregate. One
@@ -132,9 +132,9 @@ step so that nothing is silently dropped.
 | 4 | `SkyPass`, `DepthPass`, `ForwardShadingPass`, `MipMapGenPass` adapters; `SsaoPass`, `BloomPass`, `ToneMappingPass`, `TemporalAntiAliasingPass` refactors; persistent and history resources; `variable_shading_fg` | donut, ethereal-samples | cross-frame state survives |
 | 5 | Introspection query interface, timer queries, ImGui visualizer in `donut_app`, debug view of any intermediate | donut | **tooling and introspection** |
 | 6 | Conditional passes, exclusion groups, view groups and iterated subgraphs; `vxgi_samples` `-framegraph` path; donut ADR 0004 | donut, ethereal-samples | **conditional passes**, **multi-view** |
-| 7 | nvrhi aliasing barrier, nvrhi ADR 0008, header-version bump, the discarded-bind-result fix (and the memory-type exposure for Vulkan); placement solver; heap realization; D3D12 aliasing with pooled fallback | donut/nvrhi, donut, ethereal-samples | **memory aliasing** |
+| 7 | nvrhi aliasing barrier, nvrhi ADR 0008, header-version bump, the discarded-bind-result fix (and the memory-type exposure for Vulkan); placement solver; heap realization; D3D12 aliasing with pooled fallback | ethereal-donut/ethereal-nvrhi, donut, ethereal-samples | **memory aliasing** |
 | 8 | Queue assignment, segment scheduling, cross-queue fences and state handoff; `async_compute_fg`; donut ADR 0005 | donut, ethereal-samples | **async compute and multi-queue** |
-| 9 | ADRs Proposed to Accepted; this plan gains its Execution record, Verification results and follow-ups | donut/nvrhi, donut, aggregate | the record |
+| 9 | ADRs Proposed to Accepted; this plan gains its Execution record, Verification results and follow-ups | ethereal-donut/ethereal-nvrhi, donut, aggregate | the record |
 
 Steps 1 to 6 are the core that must work before the two features that can produce silent corruption.
 If effort must be cut, cut **depth, not features**, using these pre-approved reductions so the decision
@@ -147,13 +147,13 @@ is not re-litigated under pressure:
 
 ### Step detail
 
-**Step 1** adds `include/donut/render/framegraph/` and `src/render/framegraph/`, with the device-free
+**Step 1** adds `include/ethereal-donut/render/framegraph/` and `src/render/framegraph/`, with the device-free
 lifetime and packing logic in `src/render/framegraph/detail/`, and the explicit `file(GLOB)` entries in
 `donut-render.cmake`. Lifetime intervals are half-open over pass-instance indices. The validation set
-includes the checks Falcor declared but never wired up â€” writer and reader format compatibility, depth
+includes the checks Falcor declared but never wired up â€?writer and reader format compatibility, depth
 against colour slot legality, dimension view legality, subresource ranges within the resolved mip and
 array counts, sample-count agreement within a render-target group, format support for every required
-usage bit, and queue legality â€” plus the check neither Falcor nor donut has: a transient whose first
+usage bit, and queue legality â€?plus the check neither Falcor nor donut has: a transient whose first
 use is a read with no in-frame producer is a compile error, not a warning.
 
 **Step 2** keeps nvrhi's automatic barriers on and pre-transitions instead, so the automatic path finds
@@ -181,7 +181,7 @@ into five graph passes so its four intermediates become aliasable transients.
 **Step 7** adds the aliasing barrier as a new interface derived from `ICommandList` with a fresh IID
 that the object also answers, per section 3.4 of the ABI rules, rather than changing a released vtable,
 and bumps the header version. The validation layer forwards it and checks that both resources are
-virtual, bound, in the same heap, and that their byte ranges genuinely overlap â€” a check nothing else
+virtual, bound, in the same heap, and that their byte ranges genuinely overlap â€?a check nothing else
 can perform, and on its own a good reason to prefer the fork over issuing the barrier natively.
 Aliasing and async compute are **not** combined: aliasing reuse is by definition the case with no data
 dependency, so no fence exists where one would be needed, and barriers are queue-local. One transient
@@ -191,9 +191,9 @@ heap per queue, and any resource touched by more than one queue is allocated com
 
 ### Unit tests, no device
 
-New `donut/tests/test-render.cmake`, mirroring `test-engine.cmake`: one executable per
+New `ethereal-donut/tests/test-render.cmake`, mirroring `test-engine.cmake`: one executable per
 `src/render/test_*.cpp`, linked against `donut_render donut_engine donut_core donut_tests_utils`,
-registered with `add_test`, and included from `donut/tests/CMakeLists.txt` inside the existing
+registered with `add_test`, and included from `ethereal-donut/tests/CMakeLists.txt` inside the existing
 `if (DONUT_WITH_NVRHI)` block. Written with a hand-written `main()` and the `CHECK` macro, matching the
 existing tests rather than introducing GTest.
 
@@ -210,7 +210,7 @@ resource is declared transient and none when it is declared persistent.
 Packer cases: disjoint intervals share an offset; overlapping intervals do not; alignment is respected
 (a 100-byte block followed by a 64-byte-aligned request lands at 128, not 100); MSAA alignment is
 respected; growth granularity does not recreate a heap for a small increase; and the result is
-deterministic â€” shuffling the input with a fixed seed many times must give bit-identical placement,
+deterministic â€?shuffling the input with a fixed seed many times must give bit-identical placement,
 which is what keeps physical identity stable across recompiles. Randomized property tests assert the
 non-overlap invariant over generated interval sets.
 
@@ -233,7 +233,7 @@ before committing.
 
 ### Header rules
 
-Point `donut/nvrhi/tests/abi_lint.py` at the new header directory; it already walks any directory and
+Point `ethereal-donut/ethereal-nvrhi/tests/abi_lint.py` at the new header directory; it already walks any directory and
 applies R1, R2, R3, R5, the module-private-type check and the export rule, so only R4 needs a one-line
 change to its hardcoded API-header set. `header_hygiene.cmake` hardcodes the `nvrhi/` subdirectory in
 its glob and needs a parameter to be reused. Add an equivalent of the standalone-header check, in which
@@ -247,7 +247,7 @@ Design it to R1, R3 and R5 from the first draft and budget one lint-rejection it
 Capture the original and the ported sample with identical determinism switches, and confirm the same
 API and frame index before trusting anything downstream. Then, with the RenderDoc tooling:
 
-- The draw count must match â€” the graph reorders and pools, it does not change the work â€” while the
+- The draw count must match â€?the graph reorders and pools, it does not change the work â€?while the
   resource count falls. A changed draw count means something was wrongly culled.
 - The final backbuffer must be bit-identical. A stored golden image gives a regression gate that does
   not need RenderDoc.
@@ -262,7 +262,7 @@ API and frame index before trusting anything downstream. Then, with the RenderDo
 - For every pair of resources sharing a heap range, assert that the last use of one precedes the first
   use of the other and that no read of the first occurs after the second is written. This is the
   definitive aliasing test and, unlike an image comparison, it does not depend on the corruption being
-  visible â€” an aliasing violation very often produces a plausible image.
+  visible â€?an aliasing violation very often produces a plausible image.
 - The unused-target query must come back empty on the ported capture; on the original it finds the
   over-allocation, which is the before-and-after story for free.
 - Run the API-misuse check on every capture on every backend.
@@ -274,7 +274,7 @@ difference is an aliasing bug. This becomes CI-able once the determinism switche
 
 Report the graph's own accounting as the headline: committed bytes, aliased bytes, the packing lower
 bound, the no-reuse baseline, and the saving attributable to iterated-subgraph reuse. Two derived ratios
-carry the story â€” aliased bytes against the lower bound measures the packer, and the no-reuse baseline
+carry the story â€?aliased bytes against the lower bound measures the packer, and the no-reuse baseline
 against the total measures the feature. The accounting is reportable from a unit test on a recorded
 declaration set, with no GPU. Corroborate with the RenderDoc texture statistics. Whole-process figures
 from the DXGI and Vulkan budget queries are noisy and are quoted as a range.
@@ -282,7 +282,7 @@ from the DXGI and Vulkan budget queries are noisy and are quoted as a range.
 `IRHIObject::queryMemoryRequirements` is not usable here: textures report failure on every backend. Use
 the `IDevice` getter. Report pooling and aliasing separately so the additional win from placed resources
 is visible against the cost of the barrier work, and state which resources are excluded from aliasing
-by construction â€” TAA history, the exposure buffer, and anything crossing a queue.
+by construction â€?TAA history, the exposure buffer, and anything crossing a queue.
 
 ### Backends
 
@@ -292,8 +292,8 @@ by construction â€” TAA history, the exposure buffer, and anything crossing a qu
 | Vulkan, Debug, with validation layers | image-layout transitions and undefined-layout re-initialization, where the aliasing abstraction will leak if it is going to |
 | D3D11, Debug | the fallback path: `createHeap` is unsupported and asserts in debug, so this run is precisely the test that the allocator never attempts virtual resources. It also validates that the no-aliasing switch is equivalent, since D3D11 is permanently in that mode |
 
-`deferred_shading` is the only ported sample that builds for D3D11 â€” the others are guarded by the
-D3D12-or-Vulkan condition in `ethereal-samples/src/CMakeLists.txt` â€” so it carries that duty alone,
+`deferred_shading` is the only ported sample that builds for D3D11 â€?the others are guarded by the
+D3D12-or-Vulkan condition in `ethereal-samples/src/CMakeLists.txt` â€?so it carries that duty alone,
 which is a further reason it is ported first. Run D3D12 both with and without enhanced barriers.
 `NVRHI_WITH_VALIDATION` is on by default.
 

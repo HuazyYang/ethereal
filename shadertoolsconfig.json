@@ -2,6 +2,6 @@
     "hlsl.preprocessorDefinitions": {
     },
     "hlsl.additionalIncludeDirectories": [
-        "D:/ps/repo/ethereal/donut/include"
+        "D:/ps/repo/ethereal/ethereal-donut/include"
     ]
 }
