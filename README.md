@@ -41,5 +41,5 @@ compiler cannot find the standard headers.
 
 Configure downloads Vulkan-Headers, DirectX-Headers and the D3D12 Agility SDK (and unpacks ShaderTool's compiler
 packages). On a machine with a flaky connection reuse existing copies, e.g.
-`-DFETCHCONTENT_SOURCE_DIR_VULKAN_HEADERS=<path> -DFETCHCONTENT_SOURCE_DIR_DIRECTX_HEADERS=<path>`
+`-DEPM_VULKAN_HEADERS_SOURCE=<path> -DEPM_DIRECTX_HEADERS_SOURCE=<path>` (see [docs/epm.md](docs/epm.md); `-DEPM_SOURCE_CACHE=<dir>` shares downloads between build trees)
 (`build.ps1 -CMakeArgs ...`).

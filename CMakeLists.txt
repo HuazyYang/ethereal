@@ -17,8 +17,8 @@ endif()
 
 project(ethereal VERSION 1.0 LANGUAGES ${ETHEREAL_LANGUAGES})
 
-option(ETHEREAL_BUILD_SAMPLES    "Build ethereal-samples (src/)" ON)
-option(ETHEREAL_BUILD_BENCHMARKS "Build ethereal-samples benchmarks (benchmark/)" ON)
+option(ETHEREAL_BUILD_SAMPLES    "Build ethereal-samples (src/)" OFF)
+option(ETHEREAL_BUILD_BENCHMARKS "Build ethereal-samples benchmarks (benchmark/)" OFF)
 
 # nv_asteroids (ethereal-samples/demos/nv_asteroids) reconstructs the 2018 NVIDIA
 # Asteroids demo. It is opt-in because it only configures with the original
@@ -41,6 +41,8 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 enable_testing()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+# The package manager lives in nvrhi, the deepest project that needs it; everything includes that copy.
+include("${CMAKE_CURRENT_SOURCE_DIR}/ethereal-donut/ethereal-nvrhi/cmake/EPM.cmake")
 
 set(ETHEREAL_OPTIX_FOUND OFF)
 if (ETHEREAL_WITH_OPTIX AND ETHEREAL_BUILD_GVDB)
@@ -81,30 +83,22 @@ set(DONUT_WITH_KTX OFF CACHE BOOL "Build KTX2 (BCn + Zstandard) texture loading 
 # nv_asteroids needs NVAPI: the 2018 demo built its Turing mesh-shader PSOs
 # through NvAPI_D3D12_CreateGraphicsPipelineState, and the demo reproduces that
 # path (it is the default when the 2018 NVAPI check passes; -meshShaders d3d12
-# selects SM 6.5 amplification/mesh shaders instead). nvrhi is configured here
-# because Donut adds it below, before ethereal-samples is reached.
+# selects SM 6.5 amplification/mesh shaders instead). nvrhi finds the SDK, or fetches
+# NVIDIA's public repository; it is configured below, before ethereal-samples is reached.
 if (ETHEREAL_BUILD_NV_ASTEROIDS)
-	set(ETHEREAL_NVAPI_SDK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ethereal-samples/demos/nv_asteroids/external/nvapi"
-		CACHE PATH "NVAPI SDK (nvapi.h, amd64/nvapi64.lib)")
-	if (EXISTS "${ETHEREAL_NVAPI_SDK_DIR}/nvapi.h")
-		set(NVRHI_WITH_NVAPI ON CACHE BOOL "" FORCE)
-		set(NVAPI_INCLUDE_DIR "${ETHEREAL_NVAPI_SDK_DIR}" CACHE PATH "" FORCE)
-		set(NVAPI_LIBRARY "${ETHEREAL_NVAPI_SDK_DIR}/amd64/nvapi64.lib" CACHE FILEPATH "" FORCE)
-	else()
-		message(WARNING "NVAPI SDK not found at ${ETHEREAL_NVAPI_SDK_DIR} "
-			"(run: git submodule update --init --recursive). nv_asteroids will build without the "
-			"2018 NVAPI mesh-shader path.")
-	endif()
+	set(NVRHI_WITH_NVAPI ON CACHE BOOL "" FORCE)
 endif()
 
-if (NOT EXISTS "${ETHEREAL_DONUT_DIR}/CMakeLists.txt")
-	message(FATAL_ERROR "donut is missing. Run: git submodule update --init --recursive")
-endif()
-add_subdirectory(ethereal-donut)
+epm_add_package(
+	NAME ethereal_donut
+	PACKAGE EtherealDonut
+	VERSION 1.0
+	SOURCE_DIR "${ETHEREAL_DONUT_DIR}")
 
 if (ETHEREAL_BUILD_SAMPLES OR ETHEREAL_BUILD_BENCHMARKS)
-	if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ethereal-samples/CMakeLists.txt")
-		message(FATAL_ERROR "ethereal-samples is missing. Run: git submodule update --init --recursive")
-	endif()
-	add_subdirectory(ethereal-samples)
+	epm_add_package(
+		NAME ethereal_samples
+		PACKAGE EtherealSamples
+		VERSION 1.0
+		SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ethereal-samples")
 endif()
