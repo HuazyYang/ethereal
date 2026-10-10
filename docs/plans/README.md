@@ -13,7 +13,7 @@ A plan for work confined to one repository belongs in that repository's `doc/pla
 ## When to write one
 
 Write a plan for work that spans several commits or repositories (the aggregate, `ethereal-donut`,
-`ethereal-donut/ethereal-nvrhi`, `ethereal-samples`), or that needs a reviewed order of steps so that every commit still
+`ethereal-nvrhi`, `ethereal-samples`), or that needs a reviewed order of steps so that every commit still
 builds.
 
 ## File names

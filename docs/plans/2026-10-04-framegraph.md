@@ -47,7 +47,7 @@ These were verified against the tree and shape the steps below.
 `CommandQueue`, `CommandListParameters::queueType`, `executeCommandLists`, `queueWaitForCommandList`
 and `createCommandListLifetimeTracker`, and `ethereal-samples/src/async_compute` already demonstrates
 the pattern. Profiling has `beginMarker`/`endMarker` and the timer-query API. But a search of
-`ethereal-donut/ethereal-nvrhi/include` for "alias" matches only `antialiasedLineEnable`: **there is no aliasing
+`ethereal-nvrhi/include` for "alias" matches only `antialiasedLineEnable`: **there is no aliasing
 barrier**, which is why step 7 forks nvrhi.
 
 **The cheap substitute for an aliasing barrier is incorrect, not merely noisy.** Transitioning a
@@ -110,7 +110,7 @@ Commit order within every step is forced by the submodule nesting, and each subm
 before its parent can record the new SHA:
 
 ```
-ethereal-donut/ethereal-nvrhi  ->  donut (bumps nvrhi)  ->  ethereal-samples  ->  aggregate (bumps donut, ethereal-samples)
+ethereal-nvrhi  ->  donut (bumps nvrhi)  ->  ethereal-samples  ->  aggregate (bumps donut, ethereal-samples)
 ```
 
 Only step 7 touches nvrhi, so most steps are donut, then ethereal-samples, then the aggregate. One
@@ -132,9 +132,9 @@ step so that nothing is silently dropped.
 | 4 | `SkyPass`, `DepthPass`, `ForwardShadingPass`, `MipMapGenPass` adapters; `SsaoPass`, `BloomPass`, `ToneMappingPass`, `TemporalAntiAliasingPass` refactors; persistent and history resources; `variable_shading_fg` | donut, ethereal-samples | cross-frame state survives |
 | 5 | Introspection query interface, timer queries, ImGui visualizer in `donut_app`, debug view of any intermediate | donut | **tooling and introspection** |
 | 6 | Conditional passes, exclusion groups, view groups and iterated subgraphs; `vxgi_samples` `-framegraph` path; donut ADR 0004 | donut, ethereal-samples | **conditional passes**, **multi-view** |
-| 7 | nvrhi aliasing barrier, nvrhi ADR 0008, header-version bump, the discarded-bind-result fix (and the memory-type exposure for Vulkan); placement solver; heap realization; D3D12 aliasing with pooled fallback | ethereal-donut/ethereal-nvrhi, donut, ethereal-samples | **memory aliasing** |
+| 7 | nvrhi aliasing barrier, nvrhi ADR 0008, header-version bump, the discarded-bind-result fix (and the memory-type exposure for Vulkan); placement solver; heap realization; D3D12 aliasing with pooled fallback | ethereal-nvrhi, donut, ethereal-samples | **memory aliasing** |
 | 8 | Queue assignment, segment scheduling, cross-queue fences and state handoff; `async_compute_fg`; donut ADR 0005 | donut, ethereal-samples | **async compute and multi-queue** |
-| 9 | ADRs Proposed to Accepted; this plan gains its Execution record, Verification results and follow-ups | ethereal-donut/ethereal-nvrhi, donut, aggregate | the record |
+| 9 | ADRs Proposed to Accepted; this plan gains its Execution record, Verification results and follow-ups | ethereal-nvrhi, donut, aggregate | the record |
 
 Steps 1 to 6 are the core that must work before the two features that can produce silent corruption.
 If effort must be cut, cut **depth, not features**, using these pre-approved reductions so the decision
@@ -233,7 +233,7 @@ before committing.
 
 ### Header rules
 
-Point `ethereal-donut/ethereal-nvrhi/tests/abi_lint.py` at the new header directory; it already walks any directory and
+Point `ethereal-nvrhi/tests/abi_lint.py` at the new header directory; it already walks any directory and
 applies R1, R2, R3, R5, the module-private-type check and the export rule, so only R4 needs a one-line
 change to its hardcoded API-header set. `header_hygiene.cmake` hardcodes the `nvrhi/` subdirectory in
 its glob and needs a parameter to be reused. Add an equivalent of the standalone-header check, in which

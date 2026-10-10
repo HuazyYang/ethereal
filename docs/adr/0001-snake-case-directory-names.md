@@ -33,7 +33,7 @@ forced the question before the inconsistency was duplicated.
 
 ## Decision
 
-Directory names in `ethereal`, `ethereal-donut` and `ethereal-donut/ethereal-nvrhi` **must** be `snake_case`: lowercase words
+Directory names in `ethereal`, `ethereal-donut` and `ethereal-nvrhi` **must** be `snake_case`: lowercase words
 separated by underscores.
 
 A single compound word conventionally written without a break takes no underscore: `framebuffer`,

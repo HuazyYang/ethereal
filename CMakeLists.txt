@@ -42,7 +42,7 @@ enable_testing()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 # The package manager lives in nvrhi, the deepest project that needs it; everything includes that copy.
-include("${CMAKE_CURRENT_SOURCE_DIR}/ethereal-donut/ethereal-nvrhi/cmake/EPM.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/ethereal-nvrhi/cmake/EPM.cmake")
 
 set(ETHEREAL_OPTIX_FOUND OFF)
 if (ETHEREAL_WITH_OPTIX AND ETHEREAL_BUILD_GVDB)
