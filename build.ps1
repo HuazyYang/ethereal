@@ -28,7 +28,7 @@ $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 
 # --- sources ---------------------------------------------------------------------------------
-foreach ($sub in 'donut\CMakeLists.txt', 'ethereal-samples\CMakeLists.txt') {
+foreach ($sub in 'ethereal-donut\CMakeLists.txt', 'ethereal-nvrhi\CMakeLists.txt', 'ethereal-samples\CMakeLists.txt') {
     if (-not (Test-Path $sub)) {
         Write-Host 'Initialising submodules ...'
         git submodule update --init --recursive

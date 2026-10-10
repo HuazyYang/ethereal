@@ -11,10 +11,12 @@
       "cacheVariables": {
         "CMAKE_CONFIGURATION_TYPES": "Debug;Release;RelWithDebInfo",
         "CMAKE_POLICY_VERSION_MINIMUM": "3.22",
-        "CMAKE_TOOLCHAIN_FILE": "${env:VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-        "VCPKG_TARGET_TRIPLET": "x64-windows-static-md",
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_TARGET_TRIPLET": "x64-windows-static",
         "ETHEREAL_WITH_UNIT_TESTS": "OFF",
-        "ETHEREAL_BUILD_NV_ASTEROIDS" : "OFF"
+        "ETHEREAL_BUILD_NV_ASTEROIDS" : "OFF",
+        "NVRHI_WITH_NVAPI": "ON",
+        "NVRHI_WITH_RTXMU": "ON"
       }
     },
     {
@@ -25,8 +27,8 @@
       "binaryDir": "${sourceDir}/build-vs2022",
       "cacheVariables": {
         "CMAKE_POLICY_VERSION_MINIMUM": "3.22",
-        "CMAKE_TOOLCHAIN_FILE": "${env:VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-        "VCPKG_TARGET_TRIPLET": "x64-windows-static-md",
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_TARGET_TRIPLET": "x64-windows-static",
         "ETHEREAL_WITH_UNIT_TESTS": "OFF",
         "ETHEREAL_BUILD_NV_ASTEROIDS": "OFF"
       }
