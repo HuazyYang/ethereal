@@ -6,6 +6,7 @@
       "name": "default",
       "displayName": "Ninja Multi-Config (x64)",
       "description": "Run from a Visual Studio developer environment, or use build.ps1, which sets it up.",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
       "generator": "Ninja Multi-Config",
       "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
@@ -20,8 +21,25 @@
       }
     },
     {
+      "name": "linux",
+      "displayName": "Ninja Multi-Config (Linux, Vulkan)",
+      "description": "No vcpkg needed: GLFW, imgui, stb, cgltf and the Vulkan headers are fetched at configure time. Needs the X11 development packages (libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev) and a Vulkan driver at run time; libgtest-dev adds the nvrhi::core tests.",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" },
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_CONFIGURATION_TYPES": "Debug;Release;RelWithDebInfo",
+        "CMAKE_POLICY_VERSION_MINIMUM": "3.22",
+        "ETHEREAL_BUILD_SAMPLES": "ON",
+        "ETHEREAL_BUILD_BENCHMARKS": "ON",
+        "DONUT_WITH_UNIT_TESTS": "ON",
+        "NVRHI_BUILD_TESTS": "ON"
+      }
+    },
+    {
       "name": "vs2022",
       "displayName": "Visual Studio 17 2022 (x64)",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
       "generator": "Visual Studio 17 2022",
       "architecture": "x64",
       "binaryDir": "${sourceDir}/build-vs2022",
@@ -38,13 +56,28 @@
     { "name": "debug", "configurePreset": "default", "configuration": "Debug" },
     { "name": "release", "configurePreset": "default", "configuration": "Release" },
     { "name": "relwithdebinfo", "configurePreset": "default", "configuration": "RelWithDebInfo" },
-    { "name": "vs2022-release", "configurePreset": "vs2022", "configuration": "Release" }
+    { "name": "vs2022-release", "configurePreset": "vs2022", "configuration": "Release" },
+    { "name": "linux-debug", "configurePreset": "linux", "configuration": "Debug" },
+    { "name": "linux-release", "configurePreset": "linux", "configuration": "Release" },
+    { "name": "linux-relwithdebinfo", "configurePreset": "linux", "configuration": "RelWithDebInfo" }
   ],
   "testPresets": [
     {
       "name": "release",
       "configurePreset": "default",
       "configuration": "Release",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "linux-release",
+      "configurePreset": "linux",
+      "configuration": "Release",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "linux-debug",
+      "configurePreset": "linux",
+      "configuration": "Debug",
       "output": { "outputOnFailure": true }
     }
   ]
