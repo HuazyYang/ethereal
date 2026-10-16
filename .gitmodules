@@ -1,10 +1,12 @@
 [submodule "ethereal-donut"]
 	path = ethereal-donut
 	url = https://github.com/HuazyYang/ethereal-donut.git
-	branch = ethereal-dev
+	branch = binding-freq
 [submodule "ethereal-samples"]
 	path = ethereal-samples
 	url = git@github.com:HuazyYang/ethereal-samples.git
+	branch = binding-freq
 [submodule "ethereal-nvrhi"]
 	path = ethereal-nvrhi
 	url = https://github.com/HuazyYang/ethereal-nvrhi.git
+	branch = binding-freq
