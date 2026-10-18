@@ -1,6 +1,6 @@
 # Mixed mesh/volume Slang ray tracing
 
-This is the next implementation contract under the approved Slang-next plan. It is not an implemented-feature claim.
+Status: Approved, 2026-10-18. Implementation and Windows validation are recorded in the fourth checkpoint. This contract does not claim completion of the full Slang-next project.
 
 ## Purpose and retained behavior
 
@@ -28,7 +28,7 @@ D3D12, Vulkan RT, and CUDA/OptiX execute the same scene shaders. D3D11 reports u
 
 ## Concrete data layout and compatibility
 
-The first implementation uses eight resource arrays at t16/t24/t32/t40/t48/t56 for scalar, nodes, children, levels, packed color and transfer data. Their independent probe checks distinct array elements and each structured stride on DXIL, SPIR-V and OptiX. Instance and mesh metadata are uint4 records; materials are eight explicitly packed float4 values.
+The first implementation uses six arrays of eight resources at t16/t24/t32/t40/t48/t56 for scalar, nodes, children, levels, packed color and transfer data. Their independent probe checks distinct array elements and each structured stride on DXIL, SPIR-V and OptiX. Instance and mesh metadata are uint4 records; materials are eight explicitly packed float4 values.
 
 Volume metadata is 160 bytes: VolumeInfo, original steps/extinct/cutoff vectors, threshold (iso/min/max/missing scalar), and resource/mode indices. Deep integration retains the signed Beer coefficient, albedo, nearest transfer lookup and legacy composition. The 272-byte scene constant struct contains the existing camera, sample/scene counts, separate dataset frame and RNG seed, and world-space point-light position; constant storage is padded to 512 bytes.
 
@@ -36,4 +36,15 @@ The fifteen hit groups are mesh/surface/deep/level-set/empty-space modes times r
 
 Initial geometry replacement and renderer destruction synchronize before releasing BLAS resources because Vulkan TLAS objects do not retain their BLAS inputs. Future asynchronous replacement must retain complete scene generations until completion. These synchronization points do not change the separate depth-map interop path's GPU-only normal-frame ordering.
 
-The shared camera convention samples pixel centers. Legacy application adapters must offset the lower-corner direction by half of each pixel basis to reproduce the original pixel/width convention in screenshot comparisons.
+The shared camera convention samples pixel centers. Current application adapters retain that convention; the legacy renderer uses pixel/width coordinates. Captures therefore include a documented half-pixel convention difference alongside the deterministic RNG change. Point-cloud ray tracing explicitly preserves the legacy unbounded primary-ray range rather than inheriting the raster camera near/far planes.
+
+## Review corrections in the fourth checkpoint
+
+Deep integration now runs in closest-hit/any-hit shaders, where the payload
+identifies primary and secondary rays. Primary integration and its continuation
+respect the camera interval; secondary reflection/refraction/shadow rays retain
+their independent range. The first-hit intersection test does not integrate to
+the traversal-dependent nearest triangle. Analytic fixtures cover two/four/eleven
+retained samples, continuation clipping, and a nearer triangle. OptiX closest-hit
+uses the world-to-object transform because its object-ray getters are restricted
+to intersection and any-hit stages. All three backend regression suites pass.
