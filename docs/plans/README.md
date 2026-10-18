@@ -64,3 +64,5 @@ Keep local user paths, machine names and credentials out of plans. Use repositor
 | [Depth-map Slang migration](2026-10-18-depth-map-slang-migration.md) | Approved; Windows validation recorded | See plan |
 | [Mixed mesh/volume Slang RT](2026-10-18-mixed-scene-slang-rt.md) | Approved; fourth checkpoint | See plan |
 | [Unified GVDB volume ownership](2026-10-18-gvdb-unified-volume-ownership.md) | Approved; implementation in progress | See plan |
+| [GVDB NVRHI contract](2026-10-18-gvdb-nvrhi-contract-draft.md) | Draft vocabulary implemented; GPU owner in progress | See plan |
+| [GVDB host ownership](2026-10-18-gvdb-host-volume-step-b.md) | Implemented CPU slice; validation recorded | See plan |

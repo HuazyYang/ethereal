@@ -30,7 +30,7 @@ The retained source was freshly built in `build/legacy-reference` for render-to-
 - Procedural GVDB ray tracing passes analytic volume/surface/shadow, clipping, transformed-instance, update, miss and shared-atlas tests on D3D12, Vulkan RT and OptiX.
 - Rewritten render-to-file runs on all four APIs. Its 128 x 96 explosion outputs differ by at most one 8-bit channel value across backends.
 - Rewritten render-kernel preserves the custom first-threshold-hit wavefront shader and diffuse/reflected-sky formula. Eight real-asset/analytic tests pass across four APIs; outputs agree to one 8-bit channel value.
-- Rewritten sph_fluid_pool runs the complete SPH sequence and four original presets through NVRHI. Four application smoke tests pass. Graphics modes render simulation buffers directly and support orbit/pause/reset; CUDA runs headless. The original scene/ImGui integration remains in the legacy implementation.
+- Rewritten sph_fluid_pool runs the complete SPH sequence and four original presets through NVRHI. Four application smoke tests pass. Graphics modes render simulation buffers directly and provide the Inspector, optional GPU timing, orbit/pan/zoom, pause and deferred reset; CUDA runs headless. Native GUI/input tests pass on all three graphics APIs. The original scene graph, fixed camera, one-pixel depth-tested points and ground grid remain in the legacy implementation; exact presentation parity is outstanding.
 - Rewritten resample preserves RAW byte/256 conversion, the original transformed/truncated coarse box behavior, sparse activation and a six-face halo. All coarse values and every atlas/apron voxel match independent CPU references. The corrected legacy configuration uses 16-voxel leaves: the head asset has 4,096 dense, 2,472 sparse and 2,997 halo leaves. Eight analytic/asset tests pass on all four APIs. GPU sum/count output and a correctly rounded host division keep exact-threshold topology decisions consistent with the reference; the direct GPU average entry remains available.
 - Rewritten 3d-print preserves Lucy's model-to-index transform, four voxel sizes and surface/interior values. Its signed-origin fixtures cover dense classification, sparse atlas/aprons and exact section pixels. At 0.5 mm the original asset produces 47 corrected 32-voxel bricks, 56,839 surface and 131,750 interior voxels. Eight analytic/asset tests pass; the complete leaf set is checked against an independent partition of occupied dense voxels.
 - The shared volume viewer renders directly from the GPU result buffer. It provides volume/surface/voxel/section modes, an inset, topology overlays, orbit/pan/zoom/light controls and headless rendering. Independent tests cover section interpolation/blending, distant voxel traversal, odd image/inset dimensions, topology, and presentation value/orientation. Native graphics validation is clean; CUDA memory checks pass for the viewer and both new applications.
@@ -58,6 +58,27 @@ The [public volume ownership plan](plans/2026-10-18-gvdb-unified-volume-ownershi
 records the remaining M5 integration. The legacy fluid samples use SPH. No full
 FLIP solver was found in the retained sources; particle-to-grid transfer and
 pressure projection are future functionality, not a legacy-parity requirement.
+
+## Subsequent CPU ownership and SPH checkpoint
+
+Samples `b0e9af3` adds the SDK-independent mutable host volume and ownership
+value types. It preserves node allocation order and IDs, validates manual graph
+edits, handles empty/inactive volumes, supports region/mask/value selection and
+simultaneous six-face halo activation, and rolls back failed edits. Signed
+cross-zero root growth and containing-root promotion correct retained defects.
+Standalone CPU tests pass 2/2 with clean AddressSanitizer; integrated graphics-only
+CPU tests pass 2/2 in 0.28 seconds with CUDA Toolkit discovery disabled. Logs are
+`build/m5-contract/` and `build/m5-host-graphics-tests.log`. See the
+[host ownership execution record](plans/2026-10-18-gvdb-host-volume-step-b.md).
+
+Samples `6a71ef4` restores the SPH Inspector and mouse controls, defers resets out
+of GUI callbacks, and bounds windows by rendered frames even while paused.
+Seven full-build SPH tests pass in 4.63 seconds; six isolated graphics-only SPH
+tests pass in 3.26 seconds with clean native validation. Evidence is in
+`build/sph-inspector-tests.log/xml`, `build/sph-inspector-native-detail.log`, and
+`build/sph-inspector-graphics-tests.log`. These are affected-slice results, not a
+new complete matrix run. GPU multi-channel ownership and spray acceptance remain
+in progress and are not included in these two sample commits.
 
 ## Acceptance still outstanding
 
