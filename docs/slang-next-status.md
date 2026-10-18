@@ -168,6 +168,21 @@ The [retained CUDA entry inventory](../ethereal-samples/docs/gvdb-cuda-entry-inv
 accounts for 100 explicit kernels and records each remaining replacement gate.
 Its categories are not a completion percentage or authorization to retire references.
 
+## Stable-ID accumulation and first owned renderer
+
+Samples `ca793cc` adds authenticated append-only topology candidates that preserve
+existing IDs/epochs, channel interiors and metadata across root growth and inactive
+leaf reactivation. Full replacement remains a separate epoch-changing path.
+Samples `b2f1185` moves render-to-file onto public serializer/volume snapshots,
+binding the raw atlas directly and releasing the owner before rendering.
+
+The full suite passed **274/274** (192.83 seconds); final renderer guard checks
+passed **4/4**; the final graphics-only suite passed **208/208** (157.88 seconds).
+Private native validation and CUDA memory checks are clean. Owned-renderer color
+and depth exactly match the previous portable renderer, including explosion volume
+and surface images. A fresh tests-disabled, CUDA-disabled production build and
+DX11 execution also pass. See the [execution record](plans/2026-10-19-gvdb-append-render-checkpoint.md).
+
 ## Acceptance still outstanding
 
 | Milestone | Remaining work |
@@ -177,7 +192,7 @@ Its categories are not a completion percentage or authorization to retire refere
 | M2 | Wider texture/view/error coverage and Linux CUDA execution |
 | M3 | Broader mixed-scene edge cases, legacy visual comparisons and platform validation |
 | M4 | Linux external-memory run and real multi-GPU peer transfer |
-| M5 | Remaining voxel/point/voxelizer adapters, append-preserving accumulation, consumer ownership integration and expanded data compatibility |
+| M5 | Remaining voxel/point/voxelizer adapters and consumer ownership integration and expanded data compatibility |
 | M6 | Owned-volume adoption, complete interactive behavior, Linux matrix, production legacy removal and performance comparisons |
 
 Spray-deposit completes the remaining executable rewrite; public ownership adoption and the broader acceptance gates remain in progress. Fluid reference comparisons now document the retained CUDA color-read defect and remaining stochastic differences. The archived plan's eleven sample directories include sample-utils; sph_fluid_pool is separate. The [mixed mesh/volume renderer](plans/2026-10-18-mixed-scene-slang-rt.md), point-cloud and fluid work belong to the current validation slice and are not part of the historical 130-test checkpoint.
