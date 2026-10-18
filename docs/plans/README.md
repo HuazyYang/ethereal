@@ -67,3 +67,4 @@ Keep local user paths, machine names and credentials out of plans. Use repositor
 | [GVDB NVRHI contract](2026-10-18-gvdb-nvrhi-contract-draft.md) | Additive owner/API implemented; adapters in progress | See plan |
 | [GVDB host ownership](2026-10-18-gvdb-host-volume-step-b.md) | Implemented CPU slice; validation recorded | See plan |
 | [GVDB owner/API and spray checkpoint](2026-10-18-gvdb-volume-owner-api-checkpoint.md) | Windows validation recorded; adapters remain | See plan |
+| [GVDB voxel API checkpoint](2026-10-18-gvdb-voxel-api-checkpoint.md) | Initial public operators validated; broader adapters remain | See plan |

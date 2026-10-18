@@ -105,9 +105,24 @@ across four backends; the fresh legacy comparison has RGB mean error 0.392708/25
 with explicit fine shading/rasterization differences. The shared viewer now
 blends translucent overlays and distinguishes held movement from press-only actions.
 
-Public voxel/point/voxelizer/serializer adapters and adoption of this ownership by
-the existing helper/sample consumers remain unfinished. New operator work after
-these commits is separate from the validation results above.
+## Owned-volume voxel operators
+
+Samples `d00cfc1` adds public fill/clear/copy/apron preparation through the same
+owner publication route. Selected channels change allocation/revision; old
+snapshots and unchanged topology/channels remain retained. No-op tickets remain
+authenticated and one-use. Five-format independent byte fixtures and lifetime,
+stale-ticket, failure and repack tests pass on all four APIs. Native graphics
+validation and CUDA memory checks are clean.
+
+The affected aggregate checks pass **19/19** (7.98 seconds); the graphics-only
+checks pass **15/15** (5.94 seconds) with CUDA SDK discovery disabled. Installed
+static/shared packages each pass two CPU consumers and a real CUDA consumer,
+including cross-DLL publication/readback after owner destruction. This is an
+affected-slice checkpoint, not a repeated complete matrix. See its
+[execution record](plans/2026-10-18-gvdb-voxel-api-checkpoint.md).
+
+The remaining voxel families, point/voxelizer/serializer adapters, transactional
+host adoption and helper/sample ownership migration remain unfinished.
 
 ## Acceptance still outstanding
 
