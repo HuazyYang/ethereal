@@ -73,3 +73,4 @@ Keep local user paths, machine names and credentials out of plans. Use repositor
 | [GVDB filters and dense rebuild checkpoint](2026-10-19-gvdb-filters-dense-rebuild-checkpoint.md) | Six filters and transactional replacement validated; append/consumers remain | See plan |
 | [GVDB append and owned renderer checkpoint](2026-10-19-gvdb-append-render-checkpoint.md) | Stable-ID accumulation and first owned renderer validated; public points/remaining consumers continue | See plan |
 | [GVDB public points, reduction and custom renderer checkpoint](2026-10-19-gvdb-public-points-reduction-custom-checkpoint.md) | Public point/reduction APIs and custom owned rendering validated; remaining adapters continue | See plan |
+| [GVDB owned resample checkpoint](2026-10-19-gvdb-owned-resample-checkpoint.md) | Public transformed resampling validated; gather and remaining consumers continue | See plan |

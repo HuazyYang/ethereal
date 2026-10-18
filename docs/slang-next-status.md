@@ -219,3 +219,7 @@ The new resample/3d-print viewer frames active index bounds. Its section plane u
 Local hardware is Windows x64 with one NVIDIA RTX 4050 Laptop GPU (driver 617.42). CUDA 12.9, OptiX 9.0, and Slang 2026.10.2 are the tested toolchain. No Linux execution or real multi-GPU success is claimed.
 
 Production migration is incomplete. The preserved reference implementations use donut::gp, handwritten CUDA, and their original host interfaces. They are gated by ETHEREAL_BUILD_GVDB_LEGACY; portable targets are gated separately by ETHEREAL_BUILD_GVDB. References remain available until replacements pass their acceptance gates.
+
+## Owned resampling checkpoint (2026-10-19)
+
+Samples `1b6a26c` adds public transactional dense-to-sparse R32 resampling with exact outside-value preservation and explicit caller publication. Final ABI/four-backend tests pass **5/5** and graphics-only **4/4**; native graphics validation, CUDA memory checking and static/shared installed consumers pass. Source NaN/infinity, transformed signed/extreme coordinates, old snapshot lifetime and budget/stale rejection are covered. See the [resample execution record](plans/2026-10-19-gvdb-owned-resample-checkpoint.md). These are affected-slice results, not a new full-matrix run. Depth-map adoption and public ordinary gathering remain in progress; weighted ushort gathering and broader platform/consumer gates remain open.
