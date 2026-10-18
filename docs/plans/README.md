@@ -69,3 +69,4 @@ Keep local user paths, machine names and credentials out of plans. Use repositor
 | [GVDB owner/API and spray checkpoint](2026-10-18-gvdb-volume-owner-api-checkpoint.md) | Windows validation recorded; adapters remain | See plan |
 | [GVDB voxel API checkpoint](2026-10-18-gvdb-voxel-api-checkpoint.md) | Initial public operators validated; broader adapters remain | See plan |
 | [GVDB transactional VBX checkpoint](2026-10-18-gvdb-vbx-transaction-checkpoint.md) | Exact import/coherent save validated; consumers remain | See plan |
+| [GVDB point conversion checkpoint](2026-10-19-gvdb-point-conversion-checkpoint.md) | Raw conversion validated; public point factories remain | See plan |

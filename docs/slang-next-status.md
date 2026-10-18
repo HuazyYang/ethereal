@@ -141,6 +141,16 @@ for initial fixture corrections and supported-format/budget limits.
 Dense candidate rebuild/accumulate, remaining voxel families, public point and
 voxelizer factories, and helper/sample ownership migration remain unfinished.
 
+## Raw point-stream conversion
+
+Samples `a1fea31` adds byte/ushort/float/double raw conversion with arbitrary
+strides and offsets, one to four components, and preserved interleaved fields.
+All 16 encoding pairs and rounding/guard/association fixtures pass: **4/4**
+aggregate tests and **3/3** graphics-only tests. Native validation and CUDA memory
+checks are clean. Arithmetic uses binary32; double output widens the result.
+This descriptor/shader slice does not complete public point factories or volume
+publication. See its [execution record](plans/2026-10-19-gvdb-point-conversion-checkpoint.md).
+
 ## Acceptance still outstanding
 
 | Milestone | Remaining work |
