@@ -1,6 +1,6 @@
 # Depth-map migration to Slang and public NVRHI interop
 
-Status: Draft implementation contract, 2026-10-18. Source mapping is complete; the sample has not been edited.
+Status: Implemented and validated, 2026-10-18. The execution record below documents the completed slice and measured legacy image comparison.
 
 This is the depth-map acceptance slice of the [Slang project plan](2026-10-18-ethereal-nvrhi-slang-support.md). It uses the new [graphics export contract](../../ethereal-nvrhi/docs/graphics-interop.md). The output must retain the actual Lucy mesh, explosion volume, controls, transforms, transfer function and mesh/volume composition. A synthetic fixture supplements that scene for testing.
 
@@ -23,7 +23,7 @@ Three reference quirks must be explicit in compatibility tests:
 
 ## Resource and queue contract
 
-No further public NVRHI interface is required. Use `IDevice`/`ICommandList`, `IShaderProgram`, `IGraphicsInteropDevice`, `IExternalMemory` and CUDA's existing `IInteropDevice`.
+The application uses `IDevice`/`ICommandList`, `IShaderProgram`, `IGraphicsInteropDevice`, `IExternalMemory` and CUDA's existing `IInteropDevice`.
 
 | Resource | Graphics representation | CUDA binding |
 | --- | --- | --- |
@@ -33,7 +33,7 @@ No further public NVRHI interface is required. Use `IDevice`/`ICommandList`, `IS
 | Volume image | Shared R32_UINT 2D UAV/SRV, packed RGBA8 | Imported `RWTexture2D<uint>` |
 | Volume topology/atlas/transfer/parameters | CUDA-local ordinary NVRHI buffers | Structured/raw buffers and constant buffer |
 
-Use `SharedResourceFlags::Shared`, GPU-only committed/dedicated allocations, one mip, one layer, one sample, and `keepInitialState=false` on shared textures. R32_UINT preserves byte quantization and already has a validated sharing path on all three APIs. It avoids relying on CUDA normalized texture stores. The graphics composite shader loads and unpacks that pixel. Read depth directly from the imported texture; the legacy intermediate texture-to-linear-buffer copy is unnecessary.
+Use the texture creation flags returned by `queryRoute().textureSharingFlags`, GPU-only committed/dedicated allocations, one mip, one layer, one sample, and `keepInitialState=false` on shared textures. R32_UINT preserves byte quantization and already has a validated sharing path on all three APIs. It avoids relying on CUDA normalized texture stores. The graphics composite shader loads and unpacks that pixel. Read depth directly from the imported texture; the legacy intermediate texture-to-linear-buffer copy is unnecessary.
 
 After construction/import, retain resources, export owners, fences, pipeline and binding sets in the pass. Complete initialization uploads before the first frame. For frame k, using one monotonically increasing shared timeline:
 
@@ -45,9 +45,9 @@ Do not use `ComputeRuntime::flush` in this frame chain: it host-waits. A sample 
 
 ## Backend and adapter selection
 
-Use `-dx11`, `-dx12` or `-vk` for raster/composition; `--compute cuda` is the first supported cross-API mode. Add `--cuda-device N` and `--graphics-adapter N`, separate from presentation choice. Create the explicitly selected CUDA device, obtain its public adapter identity, and select a matching enumerated graphics adapter by UUID/LUID unless the graphics index was supplied. Validate the actual created devices using `queryRoute`. A mismatch, unsupported shared format or missing native timeline capability returns an actionable unsupported result; do not stage through the host or silently choose another route.
+Use `-dx11`, `-dx12` or `-vk` for raster/composition; `--compute-api cuda` is the first supported cross-API mode. Add `--cuda-device N` and `--graphics-adapter N`, separate from presentation choice. Create the explicitly selected CUDA device, obtain its public adapter identity, and select a matching enumerated graphics adapter by UUID/LUID unless the graphics index was supplied. Validate the actual created devices using `queryRoute`. A mismatch, unsupported shared format or missing native timeline capability returns an actionable unsupported result; do not stage through the host or silently choose another route.
 
-- D3D11: supported on the validated Windows same-adapter route using shared KMT 2D textures and D3D11.4 timeline fences. It needs no shared buffers or keyed mutexes. Old Shared_NTHandle flags must not be carried over.
+- D3D11: supported on the validated Windows same-adapter route using unkeyed NT 2D textures (`Shared_NTHandleUnkeyed`) and D3D11.4 timeline fences. It needs no shared buffers or keyed mutexes. Existing `Shared_NTHandle` keeps its keyed-mutex semantics. The public exporter rejects KMT textures after a reproducible odd-dimension mapping fault; lower-level native KMT imports remain available.
 - D3D12: supported using shared committed textures, shared timeline fences and public COMMON release/acquire handling.
 - Vulkan: supported using shared dedicated images, external timeline semaphores and public GENERAL/EXTERNAL ownership transfer. Enable platform external-memory and external-semaphore extensions before device creation. Windows is validated; Linux fd execution still requires its own run.
 - Cross-physical-adapter graphics sharing is currently explicitly unsupported. CUDA has no raster/presentation path, so a bare `-cuda` is not an alternative to selecting a graphics API.
@@ -60,4 +60,14 @@ Use `-dx11`, `-dx12` or `-vk` for raster/composition; `--compute cuda` is the fi
 4. Add deterministic headless tests on each graphics-to-CUDA route: rasterized occluder before/inside/behind a constant sparse volume, empty depth, center/off-axis pixels, translated/rotated/nonuniformly-scaled instances, near/far edges, resize/reimport and multiple frames without host waits. Verify raster R32_FLOAT attachment import and image row orientation explicitly. For compatibility compare the documented discrete integration/composition formula; for exact depth compare analytic unprojection, not the legacy depth approximation.
 5. Run actual `lucy.obj`/`explosion.vbx` fixed-camera screenshots and compare the preserved legacy target where its environment is available. Record nonzero mesh/volume coverage, occlusion changes and tolerant cross-backend image differences. Run native DX11/DX12/Vulkan validation, CUDA Compute Sanitizer and resource-lifetime teardown checks. The existing integer-texture round-trip tests establish the API route; they do not establish depth-map visual parity.
 
-Execution record: source mapping only. No depth-map implementation or screenshot comparison has been performed for this migration slice yet.
+## Execution record
+
+- Migrated `main.cpp`, `DepthMap.cpp/.h`, Slang raster/composition and clipping kernels, analytic fixtures, and conditional CMake are implemented. `legacy-main.cpp` remains the fallback. The default cross-API mode, adapter selection, original scene/transforms, mouse controls, resize, screenshots, same-graphics compute and explicit exact-depth mode are available.
+- All 12 depth-map CTests pass: analytic 21-case fixtures and Lucy/explosion asset validation on D3D11/D3D12/Vulkan, each with CUDA and same-graphics compute. Three public interop 65x33 tests also pass. Native graphics validation passes all three CUDA depth-map routes and all three public interop routes.
+- CUDA Compute Sanitizer reports zero errors for all six runs: three depth-map analytic routes and three public interop routes.
+- Vulkan needed `VkPhysicalDeviceDepthClipEnableFeaturesEXT` queried and enabled when the extension is requested. This preserves the original NVRHI raster default (`depthClipEnable=false`), including near/far depth-clamped geometry while the projected-depth MRT still stores its unclamped value.
+- Fresh 65x33 D3D11 KMT mappings faulted on independent texture fetch and surface store kernels. Allocation-size padding, alternate array flags and one-layer mapping did not fix them. Unkeyed NT resources using the same GPU timeline protocol pass all analytic cases. The new explicit flag keeps existing keyed-resource semantics intact; public route capabilities now supply the required texture flags.
+- Captured preserved legacy DX12/CUDA and migrated DX12/CUDA at 1024x768, default camera/scene. Mean absolute RGB difference: 0.0057119/255 over the full image; 0.080548/255 over the union of foreground pixels. Maximum channel difference 57; 0.157038% of pixels differ by more than 1 and 0.0204722% by more than 8. These are measured tolerant parity results, not bit identity. Captures: `build/depth-map-legacy.png`, `build/depth-map-new.png`; source baseline built separately with portable GVDB disabled.
+- The 1024x768 migrated asset check sees 15476 mesh pixels, 43549 volume pixels and 9732 pixels with measurable clipping. No regular-frame host staging or CPU wait is added.
+
+Validation logs are under aggregate `build/depth-map-nt-tests.log`, `depth-map-validation-*.log`, `interop-nt-validation-*.log`, and `depth-map-memcheck-*.log`/`interop-nt-memcheck-*.log`. Remaining hardware scope: Linux file-descriptor paths and physical cross-adapter routes require separate hardware runs; cross-adapter graphics sharing continues to return unsupported.
