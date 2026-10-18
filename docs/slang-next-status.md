@@ -270,3 +270,13 @@ and **248/248**, with no skips. Previous-portable head images differ by at most
 one byte in two or three pixels; production matches explicit AMD DX11 exactly.
 See the [consumer checkpoint](plans/2026-10-19-gvdb-resample-consumer-checkpoint.md).
 3d-print ownership is in progress; public mesh voxelization remains separate.
+
+Samples `7b2d555` migrates 3d-print publication and viewing to public owned
+snapshots. Affected matrices pass **20/20** and **15/15**, both graphics adapters
+pass native analytic/Lucy validation, CUDA memory checks are clean, and all four
+Lucy images exactly match their previous-portable references. Tests-disabled
+production also passes. The [checkpoint](plans/2026-10-19-gvdb-print-ownership-checkpoint.md)
+records evidence and the next public mesh-voxelizer contract. Its existing
+portable voxelizer helper remains explicit; this does not complete the operator
+or authorize reference retirement. The preceding full matrices remain 329/329
+and 248/248 and precede this ownership slice.

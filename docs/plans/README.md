@@ -79,3 +79,4 @@ Keep local user paths, machine names and credentials out of plans. Use repositor
 | [GVDB owned point-fusion and snapshot viewer checkpoint](2026-10-19-gvdb-owned-point-fusion-view-checkpoint.md) | Point-fusion and all snapshot viewer modes validated; dense query acceptance continues | See plan |
 | [GVDB public regional downsample checkpoint](2026-10-19-gvdb-public-downsample-checkpoint.md) | Both full Windows matrices validated; resample ownership continues | See plan |
 | [GVDB resample consumer checkpoint](2026-10-19-gvdb-resample-consumer-checkpoint.md) | Owned resample and full Windows matrices validated; 3d-print ownership continues | See plan |
+| [GVDB 3d-print ownership checkpoint](2026-10-19-gvdb-print-ownership-checkpoint.md) | Owned publication/viewing validated; public mesh voxelizer remains | See plan |
