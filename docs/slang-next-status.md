@@ -151,6 +151,19 @@ checks are clean. Arithmetic uses binary32; double output widens the result.
 This descriptor/shader slice does not complete public point factories or volume
 publication. See its [execution record](plans/2026-10-19-gvdb-point-conversion-checkpoint.md).
 
+## Voxel filters and dense topology replacement
+
+Samples `e86757f` and `aad8fff` add transactional dense candidate replacement and
+six public owned-volume filters. Rebuilds preserve surviving interiors by signed
+origin, remove absent leaves even without additions, and support an empty result.
+Rebuilds advance the host epoch; append-preserving accumulation remains separate.
+Filters retain the legacy equations and filter-then-apron schedule with deterministic
+separate source/destination passes. Existing public vtables remain unchanged.
+
+The integrated affected suite passed **47/47** (16.98 seconds), and graphics-only
+passed **37/37** (15.07 seconds). Native graphics validation, CUDA memory checks,
+and installed static/shared consumers pass. See the [execution record](plans/2026-10-19-gvdb-filters-dense-rebuild-checkpoint.md).
+
 ## Acceptance still outstanding
 
 | Milestone | Remaining work |
@@ -160,7 +173,7 @@ publication. See its [execution record](plans/2026-10-19-gvdb-point-conversion-c
 | M2 | Wider texture/view/error coverage and Linux CUDA execution |
 | M3 | Broader mixed-scene edge cases, legacy visual comparisons and platform validation |
 | M4 | Linux external-memory run and real multi-GPU peer transfer |
-| M5 | Remaining voxel/point/voxelizer adapters, dense candidate adoption, consumer ownership integration and expanded data compatibility |
+| M5 | Remaining voxel/point/voxelizer adapters, append-preserving accumulation, consumer ownership integration and expanded data compatibility |
 | M6 | Owned-volume adoption, complete interactive behavior, Linux matrix, production legacy removal and performance comparisons |
 
 Spray-deposit completes the remaining executable rewrite; public ownership adoption and the broader acceptance gates remain in progress. Fluid reference comparisons now document the retained CUDA color-read defect and remaining stochastic differences. The archived plan's eleven sample directories include sample-utils; sph_fluid_pool is separate. The [mixed mesh/volume renderer](plans/2026-10-18-mixed-scene-slang-rt.md), point-cloud and fluid work belong to the current validation slice and are not part of the historical 130-test checkpoint.
