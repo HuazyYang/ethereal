@@ -121,8 +121,25 @@ including cross-DLL publication/readback after owner destruction. This is an
 affected-slice checkpoint, not a repeated complete matrix. See its
 [execution record](plans/2026-10-18-gvdb-voxel-api-checkpoint.md).
 
-The remaining voxel families, point/voxelizer/serializer adapters, transactional
-host adoption and helper/sample ownership migration remain unfinished.
+## Transactional VBX import and coherent save
+
+Samples `d522c84` adds exact host/atlas import and public serializer/save-ticket
+interfaces. The same publication path atomically adopts prepared CPU topology,
+original slots and all logical channel bytes. Save freezes topology, metadata
+and channels from one retained generation and completes after the caller waits,
+including after owner destruction. Metadata survives mutations/repacking and
+stays associated with old snapshots across later imports.
+
+The affected matrix passed **34/34** (11.70 seconds), and **27/27** (10.19 seconds)
+in the graphics-only build with CUDA Toolkit discovery disabled. Native graphics
+validation and both CUDA memory checks are clean. Static/shared installed
+consumers exercise actual save/load across the package/DLL boundary. Synthetic
+five-format and real explosion cases preserve exact channel bytes and original
+slots. See the [execution record](plans/2026-10-18-gvdb-vbx-transaction-checkpoint.md)
+for initial fixture corrections and supported-format/budget limits.
+
+Dense candidate rebuild/accumulate, remaining voxel families, public point and
+voxelizer factories, and helper/sample ownership migration remain unfinished.
 
 ## Acceptance still outstanding
 
@@ -133,7 +150,7 @@ host adoption and helper/sample ownership migration remain unfinished.
 | M2 | Wider texture/view/error coverage and Linux CUDA execution |
 | M3 | Broader mixed-scene edge cases, legacy visual comparisons and platform validation |
 | M4 | Linux external-memory run and real multi-GPU peer transfer |
-| M5 | Public operator/serializer adapters, transactional host adoption, consumer ownership integration and expanded data compatibility |
+| M5 | Remaining voxel/point/voxelizer adapters, dense candidate adoption, consumer ownership integration and expanded data compatibility |
 | M6 | Owned-volume adoption, complete interactive behavior, Linux matrix, production legacy removal and performance comparisons |
 
 Spray-deposit completes the remaining executable rewrite; public ownership adoption and the broader acceptance gates remain in progress. Fluid reference comparisons now document the retained CUDA color-read defect and remaining stochastic differences. The archived plan's eleven sample directories include sample-utils; sph_fluid_pool is separate. The [mixed mesh/volume renderer](plans/2026-10-18-mixed-scene-slang-rt.md), point-cloud and fluid work belong to the current validation slice and are not part of the historical 130-test checkpoint.

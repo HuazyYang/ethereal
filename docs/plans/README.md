@@ -68,3 +68,4 @@ Keep local user paths, machine names and credentials out of plans. Use repositor
 | [GVDB host ownership](2026-10-18-gvdb-host-volume-step-b.md) | Implemented CPU slice; validation recorded | See plan |
 | [GVDB owner/API and spray checkpoint](2026-10-18-gvdb-volume-owner-api-checkpoint.md) | Windows validation recorded; adapters remain | See plan |
 | [GVDB voxel API checkpoint](2026-10-18-gvdb-voxel-api-checkpoint.md) | Initial public operators validated; broader adapters remain | See plan |
+| [GVDB transactional VBX checkpoint](2026-10-18-gvdb-vbx-transaction-checkpoint.md) | Exact import/coherent save validated; consumers remain | See plan |
