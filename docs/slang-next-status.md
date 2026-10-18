@@ -164,6 +164,10 @@ The integrated affected suite passed **47/47** (16.98 seconds), and graphics-onl
 passed **37/37** (15.07 seconds). Native graphics validation, CUDA memory checks,
 and installed static/shared consumers pass. See the [execution record](plans/2026-10-19-gvdb-filters-dense-rebuild-checkpoint.md).
 
+The [retained CUDA entry inventory](../ethereal-samples/docs/gvdb-cuda-entry-inventory.md)
+accounts for 100 explicit kernels and records each remaining replacement gate.
+Its categories are not a completion percentage or authorization to retire references.
+
 ## Acceptance still outstanding
 
 | Milestone | Remaining work |
