@@ -9,9 +9,11 @@ cmake_minimum_required(VERSION 3.22)
 
 set(ETHEREAL_LANGUAGES C CXX)   # C: Donut's thirdparty modules (glfw, stb, ...) contain C sources.
 
-# GVDBSamples needs CUDA; it is opt-in so that configuring does not require the CUDA Toolkit.
-option(ETHEREAL_BUILD_GVDB "Build the GVDB samples (requires the CUDA Toolkit)" OFF)
-if (ETHEREAL_BUILD_GVDB)
+# Portable GVDB uses NVRHI and offline Slang. CUDA/NVCC is needed only by
+# the retained legacy reference implementation.
+option(ETHEREAL_BUILD_GVDB "Build portable GVDB Slang samples and tests" ON)
+option(ETHEREAL_BUILD_GVDB_LEGACY "Build the legacy GVDB CUDA reference samples" OFF)
+if (ETHEREAL_BUILD_GVDB_LEGACY)
 	list(APPEND ETHEREAL_LANGUAGES CUDA)
 endif()
 
@@ -19,6 +21,8 @@ project(ethereal VERSION 1.0 LANGUAGES ${ETHEREAL_LANGUAGES})
 
 option(ETHEREAL_BUILD_SAMPLES    "Build ethereal-samples (src/)" OFF)
 option(ETHEREAL_BUILD_BENCHMARKS "Build ethereal-samples benchmarks (benchmark/)" OFF)
+option(ETHEREAL_WITH_SLANG "Build offline Slang shaders and artifact loading" ON)
+set(NVRHI_WITH_SLANG "${ETHEREAL_WITH_SLANG}" CACHE BOOL "Load offline Slang executable artifacts and reflection" FORCE)
 
 # nv_asteroids (ethereal-samples/demos/nv_asteroids) reconstructs the 2018 NVIDIA
 # Asteroids demo. It is opt-in because it only configures with the original
@@ -45,7 +49,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/ethereal-nvrhi/cmake/EPM.cmake")
 
 set(ETHEREAL_OPTIX_FOUND OFF)
-if (ETHEREAL_WITH_OPTIX AND ETHEREAL_BUILD_GVDB)
+if (ETHEREAL_WITH_OPTIX AND ETHEREAL_BUILD_GVDB_LEGACY)
 	find_package(OptiX)
 	if (OptiX_INCLUDE)
 		set(ETHEREAL_OPTIX_FOUND ON)

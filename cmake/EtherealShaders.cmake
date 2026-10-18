@@ -36,7 +36,7 @@ include("${ETHEREAL_DONUT_DIR}/thirdparty/shader-tool/cmake/ShaderToolFunctions.
 
 function(ethereal_compile_shaders)
     cmake_parse_arguments(arg
-        "ALL_PLATFORMS;EMBED_PDB"
+        "ALL_PLATFORMS;EMBED_PDB;SLANG;CUDA"
         "TARGET;CONFIG;OUTPUT_DIRECTORY;FOLDER;SHADER_MODEL"
         "BACKENDS;INCLUDE_DIRECTORIES;SOURCES;DEFINES;EXTRA_FLAGS;EXTRA_FLAGS_SPIRV"
         ${ARGN})
@@ -62,12 +62,23 @@ function(ethereal_compile_shaders)
             list(PREPEND arg_BACKENDS DXBC)
         endif()
     endif()
+    if(arg_CUDA AND NVRHI_WITH_CUDA)
+        list(APPEND arg_BACKENDS PTX)
+    endif()
+    if(arg_SLANG AND NOT ETHEREAL_WITH_SLANG)
+        message(FATAL_ERROR "Slang shader targets require ETHEREAL_WITH_SLANG=ON")
+    endif()
     set(backends)
     foreach(backend IN LISTS arg_BACKENDS)
         if((backend STREQUAL "DXBC" AND DONUT_WITH_DX11) OR
            (backend STREQUAL "DXIL" AND DONUT_WITH_DX12) OR
-           (backend STREQUAL "SPIRV" AND DONUT_WITH_VULKAN))
-            list(APPEND backends ${backend})
+           (backend STREQUAL "SPIRV" AND DONUT_WITH_VULKAN) OR
+           (backend STREQUAL "PTX" AND NVRHI_WITH_CUDA))
+            if(arg_SLANG OR backend STREQUAL "PTX")
+                list(APPEND backends "SLANG-${backend}")
+            else()
+                list(APPEND backends ${backend})
+            endif()
         endif()
     endforeach()
     set(pdb_option)
@@ -78,6 +89,10 @@ function(ethereal_compile_shaders)
         # Keep the target so add_dependencies() on it still works.
         add_custom_target(${arg_TARGET} SOURCES ${arg_SOURCES})
         return()
+    endif()
+
+    if(arg_SLANG)
+        list(APPEND arg_EXTRA_FLAGS --artifact)
     endif()
 
     shadertool_add_shader_objects(
@@ -113,7 +128,7 @@ function(ethereal_disable_vs_hlsl_rule target)
         return()
     endif()
     foreach(source IN LISTS sources)
-        if(source MATCHES "\\.(hlsl|hlsli)$")
+        if(source MATCHES "\\.(hlsl|hlsli|slang)$")
             set_source_files_properties("${source}" TARGET_DIRECTORY ${target}
                 PROPERTIES VS_TOOL_OVERRIDE "None")
         endif()

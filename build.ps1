@@ -17,6 +17,7 @@ Output: build\bin (every executable, DLL, compiled shader and runtime asset, for
 .\build.ps1 -Test                             # also runs ctest (benchmark self-test, analysis tests)
 #>
 param(
+    [string]$Preset = 'default',
     [ValidateSet('Debug', 'Release', 'RelWithDebInfo')][string]$Config = 'Release',
     [string[]]$Target,
     [string[]]$CMakeArgs,
@@ -53,6 +54,12 @@ if (-not (Get-Command cl.exe -ErrorAction SilentlyContinue)) {
     if (-not (Get-Command cl.exe -ErrorAction SilentlyContinue)) { throw 'cl.exe is still not on PATH after VsDevCmd.' }
 }
 
+# Ninja files use UTF-8. A localized cl.exe also needs UTF-8 diagnostics for
+# /showIncludes dependency paths to match CMake's detected prefix.
+$env:VSLANG = '1033'
+[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
+& cmd /c "chcp 65001 >nul"
+
 # --- configure --------------------------------------------------------------------------------
 if ($Clean -and (Test-Path build)) {
     # A rebuild from scratch is requested explicitly; the old tree is moved aside, not deleted.
@@ -60,13 +67,18 @@ if ($Clean -and (Test-Path build)) {
     Move-Item -LiteralPath build -Destination $aside
     Write-Host "Moved the previous build tree to $aside"
 }
-& cmake --preset default @CMakeArgs
-if ($LASTEXITCODE -ne 0) { throw 'CMake configuration failed.' }
+# PowerShell 5 must not turn a successful compiler/CMake warning on stderr
+# into a terminating error. Native exit codes determine build success.
+$ErrorActionPreference = 'Continue'
+& cmake --preset $Preset @CMakeArgs
+$configureExit = $LASTEXITCODE
+$ErrorActionPreference = 'Stop'
+if ($configureExit -ne 0) { throw 'CMake configuration failed.' }
 if ($ConfigureOnly) { return }
 
 # --- build ------------------------------------------------------------------------------------
-$preset = $Config.ToLower()
-$buildArgs = @('--build', '--preset', $preset)
+$buildPreset = if ($Preset -eq 'default') { $Config.ToLower() } else { "$Preset-$($Config.ToLower())" }
+$buildArgs = @('--build', '--preset', $buildPreset)
 $targets = @($Target | Where-Object { $_ } | ForEach-Object { $_ -split ',' })   # "-Target a,b" arrives as one string via -File
 if ($targets) { $buildArgs += '--target'; $buildArgs += $targets }
 & cmake @buildArgs
@@ -76,6 +88,6 @@ if ($LASTEXITCODE -ne 0) { throw 'Build failed.' }
 Write-Host "Done. Binaries: $(Join-Path $PSScriptRoot 'build\bin')"
 
 if ($Test) {
-    & ctest --preset release
+    & ctest --preset $buildPreset
     if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
 }

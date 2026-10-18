@@ -1,12 +1,20 @@
 {
   "version": 6,
-  "cmakeMinimumRequired": { "major": 3, "minor": 22, "patch": 0 },
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 22,
+    "patch": 0
+  },
   "configurePresets": [
     {
       "name": "default",
       "displayName": "Ninja Multi-Config (x64)",
       "description": "Run from a Visual Studio developer environment, or use build.ps1, which sets it up.",
-      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
       "generator": "Ninja Multi-Config",
       "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
@@ -15,7 +23,7 @@
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "VCPKG_TARGET_TRIPLET": "x64-windows-static",
         "ETHEREAL_WITH_UNIT_TESTS": "OFF",
-        "ETHEREAL_BUILD_NV_ASTEROIDS" : "OFF",
+        "ETHEREAL_BUILD_NV_ASTEROIDS": "OFF",
         "NVRHI_WITH_NVAPI": "ON",
         "NVRHI_WITH_RTXMU": "ON"
       }
@@ -24,7 +32,11 @@
       "name": "linux",
       "displayName": "Ninja Multi-Config (Linux, Vulkan)",
       "description": "No vcpkg needed: GLFW, imgui, stb, cgltf and the Vulkan headers are fetched at configure time. Needs the X11 development packages (libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev) and a Vulkan driver at run time; libgtest-dev adds the nvrhi::core tests.",
-      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
       "generator": "Ninja Multi-Config",
       "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
@@ -39,7 +51,11 @@
     {
       "name": "vs2022",
       "displayName": "Visual Studio 17 2022 (x64)",
-      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
       "generator": "Visual Studio 17 2022",
       "architecture": "x64",
       "binaryDir": "${sourceDir}/build-vs2022",
@@ -50,35 +66,298 @@
         "ETHEREAL_WITH_UNIT_TESTS": "OFF",
         "ETHEREAL_BUILD_NV_ASTEROIDS": "OFF"
       }
+    },
+    {
+      "name": "slang-next",
+      "inherits": "default",
+      "displayName": "Slang: Windows graphics, CUDA and OptiX",
+      "description": "Requires CUDA Toolkit and OPTIX_ROOT pointing to the OptiX SDK. Portable GVDB never invokes NVCC.",
+      "cacheVariables": {
+        "ETHEREAL_WITH_SLANG": "ON",
+        "ETHEREAL_BUILD_SAMPLES": "ON",
+        "ETHEREAL_BUILD_GVDB": "ON",
+        "ETHEREAL_BUILD_GVDB_LEGACY": "OFF",
+        "ETHEREAL_BUILD_BENCHMARKS": "OFF",
+        "NVRHI_BUILD_TESTS": "ON",
+        "DONUT_WITH_UNIT_TESTS": "ON",
+        "SHADERTOOL_BUILD_TESTS": "ON",
+        "NVRHI_WITH_CUDA": "ON",
+        "NVRHI_WITH_OPTIX": "ON",
+        "NVRHI_WITH_NVAPI": "OFF",
+        "NVRHI_WITH_RTXMU": "OFF"
+      }
+    },
+    {
+      "name": "slang-next-graphics",
+      "inherits": "slang-next",
+      "displayName": "Slang: Windows graphics only",
+      "cacheVariables": {
+        "NVRHI_WITH_CUDA": "OFF",
+        "NVRHI_WITH_OPTIX": "OFF"
+      }
+    },
+    {
+      "name": "slang-next-linux",
+      "inherits": "linux",
+      "displayName": "Slang: Linux Vulkan, CUDA and OptiX",
+      "cacheVariables": {
+        "ETHEREAL_WITH_SLANG": "ON",
+        "ETHEREAL_BUILD_SAMPLES": "ON",
+        "ETHEREAL_BUILD_GVDB": "ON",
+        "ETHEREAL_BUILD_GVDB_LEGACY": "OFF",
+        "ETHEREAL_BUILD_BENCHMARKS": "OFF",
+        "NVRHI_BUILD_TESTS": "ON",
+        "DONUT_WITH_UNIT_TESTS": "ON",
+        "SHADERTOOL_BUILD_TESTS": "ON",
+        "NVRHI_WITH_CUDA": "ON",
+        "NVRHI_WITH_OPTIX": "ON",
+        "NVRHI_WITH_NVAPI": "OFF",
+        "NVRHI_WITH_RTXMU": "OFF"
+      }
+    },
+    {
+      "name": "slang-next-linux-graphics",
+      "inherits": "slang-next-linux",
+      "displayName": "Slang: Linux Vulkan only",
+      "cacheVariables": {
+        "NVRHI_WITH_CUDA": "OFF",
+        "NVRHI_WITH_OPTIX": "OFF"
+      }
     }
   ],
   "buildPresets": [
-    { "name": "debug", "configurePreset": "default", "configuration": "Debug" },
-    { "name": "release", "configurePreset": "default", "configuration": "Release" },
-    { "name": "relwithdebinfo", "configurePreset": "default", "configuration": "RelWithDebInfo" },
-    { "name": "vs2022-release", "configurePreset": "vs2022", "configuration": "Release" },
-    { "name": "linux-debug", "configurePreset": "linux", "configuration": "Debug" },
-    { "name": "linux-release", "configurePreset": "linux", "configuration": "Release" },
-    { "name": "linux-relwithdebinfo", "configurePreset": "linux", "configuration": "RelWithDebInfo" }
+    {
+      "name": "debug",
+      "configurePreset": "default",
+      "configuration": "Debug"
+    },
+    {
+      "name": "release",
+      "configurePreset": "default",
+      "configuration": "Release"
+    },
+    {
+      "name": "relwithdebinfo",
+      "configurePreset": "default",
+      "configuration": "RelWithDebInfo"
+    },
+    {
+      "name": "vs2022-release",
+      "configurePreset": "vs2022",
+      "configuration": "Release"
+    },
+    {
+      "name": "linux-debug",
+      "configurePreset": "linux",
+      "configuration": "Debug"
+    },
+    {
+      "name": "linux-release",
+      "configurePreset": "linux",
+      "configuration": "Release"
+    },
+    {
+      "name": "linux-relwithdebinfo",
+      "configurePreset": "linux",
+      "configuration": "RelWithDebInfo"
+    },
+    {
+      "name": "slang-next-debug",
+      "configurePreset": "slang-next",
+      "configuration": "Debug"
+    },
+    {
+      "name": "slang-next-release",
+      "configurePreset": "slang-next",
+      "configuration": "Release"
+    },
+    {
+      "name": "slang-next-relwithdebinfo",
+      "configurePreset": "slang-next",
+      "configuration": "RelWithDebInfo"
+    },
+    {
+      "name": "slang-next-graphics-debug",
+      "configurePreset": "slang-next-graphics",
+      "configuration": "Debug"
+    },
+    {
+      "name": "slang-next-graphics-release",
+      "configurePreset": "slang-next-graphics",
+      "configuration": "Release"
+    },
+    {
+      "name": "slang-next-graphics-relwithdebinfo",
+      "configurePreset": "slang-next-graphics",
+      "configuration": "RelWithDebInfo"
+    },
+    {
+      "name": "slang-next-linux-debug",
+      "configurePreset": "slang-next-linux",
+      "configuration": "Debug"
+    },
+    {
+      "name": "slang-next-linux-release",
+      "configurePreset": "slang-next-linux",
+      "configuration": "Release"
+    },
+    {
+      "name": "slang-next-linux-relwithdebinfo",
+      "configurePreset": "slang-next-linux",
+      "configuration": "RelWithDebInfo"
+    },
+    {
+      "name": "slang-next-linux-graphics-debug",
+      "configurePreset": "slang-next-linux-graphics",
+      "configuration": "Debug"
+    },
+    {
+      "name": "slang-next-linux-graphics-release",
+      "configurePreset": "slang-next-linux-graphics",
+      "configuration": "Release"
+    },
+    {
+      "name": "slang-next-linux-graphics-relwithdebinfo",
+      "configurePreset": "slang-next-linux-graphics",
+      "configuration": "RelWithDebInfo"
+    }
   ],
   "testPresets": [
     {
       "name": "release",
       "configurePreset": "default",
       "configuration": "Release",
-      "output": { "outputOnFailure": true }
+      "output": {
+        "outputOnFailure": true
+      }
     },
     {
       "name": "linux-release",
       "configurePreset": "linux",
       "configuration": "Release",
-      "output": { "outputOnFailure": true }
+      "output": {
+        "outputOnFailure": true
+      }
     },
     {
       "name": "linux-debug",
       "configurePreset": "linux",
       "configuration": "Debug",
-      "output": { "outputOnFailure": true }
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "slang-next-debug",
+      "configurePreset": "slang-next",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "slang-next-release",
+      "configurePreset": "slang-next",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "slang-next-relwithdebinfo",
+      "configurePreset": "slang-next",
+      "configuration": "RelWithDebInfo",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "slang-next-graphics-debug",
+      "configurePreset": "slang-next-graphics",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "slang-next-graphics-release",
+      "configurePreset": "slang-next-graphics",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "slang-next-graphics-relwithdebinfo",
+      "configurePreset": "slang-next-graphics",
+      "configuration": "RelWithDebInfo",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "slang-next-linux-debug",
+      "configurePreset": "slang-next-linux",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "slang-next-linux-release",
+      "configurePreset": "slang-next-linux",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "slang-next-linux-relwithdebinfo",
+      "configurePreset": "slang-next-linux",
+      "configuration": "RelWithDebInfo",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "slang-next-linux-graphics-debug",
+      "configurePreset": "slang-next-linux-graphics",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "slang-next-linux-graphics-release",
+      "configurePreset": "slang-next-linux-graphics",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "slang-next-linux-graphics-relwithdebinfo",
+      "configurePreset": "slang-next-linux-graphics",
+      "configuration": "RelWithDebInfo",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "debug",
+      "configurePreset": "default",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "relwithdebinfo",
+      "configurePreset": "default",
+      "configuration": "RelWithDebInfo",
+      "output": {
+        "outputOnFailure": true
+      }
     }
   ]
 }
