@@ -78,3 +78,4 @@ Keep local user paths, machine names and credentials out of plans. Use repositor
 | [GVDB point support, apron overrides and owned surface checkpoint](2026-10-19-gvdb-point-apron-surface-checkpoint.md) | Full Windows matrices validated; point-fusion adoption continues | See plan |
 | [GVDB owned point-fusion and snapshot viewer checkpoint](2026-10-19-gvdb-owned-point-fusion-view-checkpoint.md) | Point-fusion and all snapshot viewer modes validated; dense query acceptance continues | See plan |
 | [GVDB public regional downsample checkpoint](2026-10-19-gvdb-public-downsample-checkpoint.md) | Both full Windows matrices validated; resample ownership continues | See plan |
+| [GVDB resample consumer checkpoint](2026-10-19-gvdb-resample-consumer-checkpoint.md) | Owned resample and full Windows matrices validated; 3d-print ownership continues | See plan |

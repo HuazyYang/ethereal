@@ -261,3 +261,12 @@ memory checking is clean. Complete matrices pass **329/329** and **248/248**;
 installed shared/static CUDA consumers pass. The [checkpoint](plans/2026-10-19-gvdb-public-downsample-checkpoint.md)
 records contracts, hardware findings and evidence. Resample ownership migration
 is in progress; no legacy reference retirement is authorized.
+
+Samples `643cdaa` moves the resample application onto public query/topology/halo,
+owned publication and snapshot viewing. Independent data/lifecycle references,
+both graphics adapters with native validation, CUDA memory checks and a
+tests-disabled production build pass. Final complete matrices pass **329/329**
+and **248/248**, with no skips. Previous-portable head images differ by at most
+one byte in two or three pixels; production matches explicit AMD DX11 exactly.
+See the [consumer checkpoint](plans/2026-10-19-gvdb-resample-consumer-checkpoint.md).
+3d-print ownership is in progress; public mesh voxelization remains separate.
