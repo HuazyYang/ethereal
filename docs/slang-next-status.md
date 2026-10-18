@@ -238,3 +238,17 @@ Native validation, CUDA memory checking, static/shared installed consumers and
 tests-disabled graphics production checks pass. See the [execution record](plans/2026-10-19-gvdb-point-apron-surface-checkpoint.md).
 Point-fusion consumer migration and dense regional downsampling are the next slices;
 platform, broader consumer and reference-retirement acceptance remain open.
+
+## Owned point-fusion and snapshot viewer (2026-10-19)
+
+Samples `61efa21`, `2996733` and `2f41413` fix batch root enclosure, migrate
+point-fusion to public ownership/operators and add snapshot voxel/section/inset
+viewing. Point-fusion passes 12/12 with exact previous-portable city captures on
+all four APIs; native validation and CUDA memory checking pass. Raw views pass
+all four backends, affected regressions and tests-disabled graphics production.
+The [execution record](plans/2026-10-19-gvdb-owned-point-fusion-view-checkpoint.md)
+retains the diagnostic-string regression, production image tolerance and current
+downsample boundary issue. The last complete matrices remain 319/319 and 240/240.
+This machine also exposes an AMD Radeon 780M graphics adapter alongside its RTX
+4050 CUDA device; automatic adapter selection must be recorded explicitly for
+cross-build comparisons. No supported native multi-GPU peer route is claimed.

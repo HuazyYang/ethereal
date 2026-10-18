@@ -76,3 +76,4 @@ Keep local user paths, machine names and credentials out of plans. Use repositor
 | [GVDB owned resample checkpoint](2026-10-19-gvdb-owned-resample-checkpoint.md) | Public transformed resampling validated; gather and remaining consumers continue | See plan |
 | [GVDB ordinary gather and owned depth-map checkpoint](2026-10-19-gvdb-gather-depth-checkpoint.md) | Gather and depth-map ownership validated; point-fusion integration continues | See plan |
 | [GVDB point support, apron overrides and owned surface checkpoint](2026-10-19-gvdb-point-apron-surface-checkpoint.md) | Full Windows matrices validated; point-fusion adoption continues | See plan |
+| [GVDB owned point-fusion and snapshot viewer checkpoint](2026-10-19-gvdb-owned-point-fusion-view-checkpoint.md) | Point-fusion and all snapshot viewer modes validated; dense query acceptance continues | See plan |
