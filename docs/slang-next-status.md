@@ -80,6 +80,35 @@ tests pass in 3.26 seconds with clean native validation. Evidence is in
 new complete matrix run. GPU multi-channel ownership and spray acceptance remain
 in progress and are not included in these two sample commits.
 
+## Fifth checkpoint: owned volumes, public API and spray
+
+The [execution record](plans/2026-10-18-gvdb-volume-owner-api-checkpoint.md) records
+NVRHI `e4a0e68` and samples `7959786`, `0c94cd5`, and `b47d4d5`. The complete
+Release matrix passed **231/231** in 194.07 seconds; the final graphics-only
+matrix passed **175/175** in 153.75 seconds with CUDA Toolkit discovery disabled.
+Final input/overlay and import changes passed their affected checks; the record
+also retains the corrected test-baseline failure rather than hiding it.
+
+The additive owner now publishes one topology and up to 32 raw channels through
+caller-owned NVRHI command lists. All five formats preserve compatible interiors
+across atlas growth/repacking, while retained snapshots/readbacks survive owner
+destruction. The queryable public API has new IIDs, a versioned C factory, and
+static/shared installed-consumer coverage. Four-backend owner/API fixtures,
+native graphics validation and CUDA memory checks pass. Installed static/shared
+consumers each pass 3/3 including actual CUDA lifetime/readback. CPU topology
+import passes standalone AddressSanitizer and the real explosion VBX fixture.
+
+Spray-deposit now implements fixed-topology deposition, original ray generation,
+five shading modes, Inspector and controls through Slang/NVRHI. Its 19 tests,
+native-window checks and CUDA memory checks pass. Final captures are byte-identical
+across four backends; the fresh legacy comparison has RGB mean error 0.392708/255,
+with explicit fine shading/rasterization differences. The shared viewer now
+blends translucent overlays and distinguishes held movement from press-only actions.
+
+Public voxel/point/voxelizer/serializer adapters and adoption of this ownership by
+the existing helper/sample consumers remain unfinished. New operator work after
+these commits is separate from the validation results above.
+
 ## Acceptance still outstanding
 
 | Milestone | Remaining work |
@@ -89,13 +118,13 @@ in progress and are not included in these two sample commits.
 | M2 | Wider texture/view/error coverage and Linux CUDA execution |
 | M3 | Broader mixed-scene edge cases, legacy visual comparisons and platform validation |
 | M4 | Linux external-memory run and real multi-GPU peer transfer |
-| M5 | Full GVDB host API migration, incremental topology/atlas ownership, remaining CUDA algorithms and expanded data compatibility |
-| M6 | Remaining GVDB applications, complete interactive behavior, Linux matrix, production legacy removal and performance comparisons |
+| M5 | Public operator/serializer adapters, transactional host adoption, consumer ownership integration and expanded data compatibility |
+| M6 | Owned-volume adoption, complete interactive behavior, Linux matrix, production legacy removal and performance comparisons |
 
-The remaining executable migration is spray-deposit; its ray-query and sample work is in progress. Fluid reference comparisons now document the retained CUDA color-read defect and remaining stochastic differences. The archived plan's eleven sample directories include sample-utils; sph_fluid_pool is separate. The [mixed mesh/volume renderer](plans/2026-10-18-mixed-scene-slang-rt.md), point-cloud and fluid work belong to the current validation slice and are not part of the historical 130-test checkpoint.
+Spray-deposit completes the remaining executable rewrite; public ownership adoption and the broader acceptance gates remain in progress. Fluid reference comparisons now document the retained CUDA color-read defect and remaining stochastic differences. The archived plan's eleven sample directories include sample-utils; sph_fluid_pool is separate. The [mixed mesh/volume renderer](plans/2026-10-18-mixed-scene-slang-rt.md), point-cloud and fluid work belong to the current validation slice and are not part of the historical 130-test checkpoint.
 
 The new resample/3d-print viewer frames active index bounds. Its section plane uses normalized data height, and the inset scales with the output. The original fixed camera/section mapping and ImGui presentation are retained in legacy-main.cpp; matching legacy screenshots or performance is not claimed.
 
 Local hardware is Windows x64 with one NVIDIA RTX 4050 Laptop GPU (driver 617.42). CUDA 12.9, OptiX 9.0, and Slang 2026.10.2 are the tested toolchain. No Linux execution or real multi-GPU success is claimed.
 
-Production migration is incomplete. Remaining legacy examples use donut::gp, handwritten CUDA, and their original host interfaces. They are gated by ETHEREAL_BUILD_GVDB_LEGACY; portable targets are gated separately by ETHEREAL_BUILD_GVDB. References remain available until replacements pass their acceptance gates.
+Production migration is incomplete. The preserved reference implementations use donut::gp, handwritten CUDA, and their original host interfaces. They are gated by ETHEREAL_BUILD_GVDB_LEGACY; portable targets are gated separately by ETHEREAL_BUILD_GVDB. References remain available until replacements pass their acceptance gates.
