@@ -227,3 +227,14 @@ Samples `1b6a26c` adds public transactional dense-to-sparse R32 resampling with 
 ## Ordinary gather and owned depth-map checkpoint (2026-10-19)
 
 Samples `dab1666` adds public ordinary point gathering with stable authenticated bins, signed/shifted topology, separate support/distance radii and selected-channel publication. Final gather/point regression passes **10/10**, graphics-only **8/8**, and native/memory/static/shared installed checks pass. Samples `ea973c9` migrates depth-map to public snapshots: **24/24** tests and graphics-only **12/12**, with exact old/new portable captures on all six routes. Shared-loader regressions pass **20/20** and graphics-only **15/15**. See the [execution record and remaining compatibility work](plans/2026-10-19-gvdb-gather-depth-checkpoint.md). The full project/platform acceptance gates remain open.
+
+## Point support, apron overrides and owned surfaces (2026-10-19)
+
+Samples `750d7cb`, `a8105e1` and `f643cab` add compatible float support coverage,
+per-call apron boundary values and raw colored surface rendering with snapshot-only
+viewer metadata/overlays. Both complete builds and matrices pass: **319/319**
+(217.49 seconds) and **240/240** graphics-only (178.18 seconds), with no skips.
+Native validation, CUDA memory checking, static/shared installed consumers and
+tests-disabled graphics production checks pass. See the [execution record](plans/2026-10-19-gvdb-point-apron-surface-checkpoint.md).
+Point-fusion consumer migration and dense regional downsampling are the next slices;
+platform, broader consumer and reference-retirement acceptance remain open.
