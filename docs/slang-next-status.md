@@ -183,6 +183,23 @@ and depth exactly match the previous portable renderer, including explosion volu
 and surface images. A fresh tests-disabled, CUDA-disabled production build and
 DX11 execution also pass. See the [execution record](plans/2026-10-19-gvdb-append-render-checkpoint.md).
 
+## Public points, reduction and custom owned rendering
+
+Samples `f18a6b9` adds owned point conversion and transactional signed rebuild/accumulation,
+including attribute association, converted XYZ bounds, stable append IDs and CPU pool-limit rollback.
+Samples `4d0ee12` adds retained-snapshot R32 reduction with explicit completion, active-interior
+traversal and documented placement-dependent float-column arithmetic. Existing public vtables
+remain unchanged. Samples `8727803` moves the custom renderer to owned snapshots and checks its
+complete raw shader ABI before output allocation. The inventory update is `18c9396`.
+
+The affected suites passed **75/75** (29.98 seconds) and **58/58** graphics-only (24.80 seconds),
+with CUDA Toolkit discovery disabled for the latter. Public ABI checks passed **6/6**.
+Private native graphics validation and CUDA memory checks are clean; installed static/shared
+point and reduction consumers pass. Custom color/depth exactly match the previous portable
+renderer, including all 6,144 explosion pixels. A tests-disabled production build and DX11
+runs pass. See the [execution record](plans/2026-10-19-gvdb-public-points-reduction-custom-checkpoint.md).
+Owned resampling and depth-map consumer migration are the next active slices.
+
 ## Acceptance still outstanding
 
 | Milestone | Remaining work |
