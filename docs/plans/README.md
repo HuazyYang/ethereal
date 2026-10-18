@@ -74,3 +74,4 @@ Keep local user paths, machine names and credentials out of plans. Use repositor
 | [GVDB append and owned renderer checkpoint](2026-10-19-gvdb-append-render-checkpoint.md) | Stable-ID accumulation and first owned renderer validated; public points/remaining consumers continue | See plan |
 | [GVDB public points, reduction and custom renderer checkpoint](2026-10-19-gvdb-public-points-reduction-custom-checkpoint.md) | Public point/reduction APIs and custom owned rendering validated; remaining adapters continue | See plan |
 | [GVDB owned resample checkpoint](2026-10-19-gvdb-owned-resample-checkpoint.md) | Public transformed resampling validated; gather and remaining consumers continue | See plan |
+| [GVDB ordinary gather and owned depth-map checkpoint](2026-10-19-gvdb-gather-depth-checkpoint.md) | Gather and depth-map ownership validated; point-fusion integration continues | See plan |
