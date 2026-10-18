@@ -252,3 +252,12 @@ downsample boundary issue. The last complete matrices remain 319/319 and 240/240
 This machine also exposes an AMD Radeon 780M graphics adapter alongside its RTX
 4050 CUDA device; automatic adapter selection must be recorded explicitly for
 cross-build comparisons. No supported native multi-GPU peer route is claimed.
+
+Public regional downsample is committed in samples `dc3a118`; NVRHI `689f89e`
+rejects unsupported declared SPIR-V rounding modes. Exact endpoint division and
+explicit Vulkan RTE32 resolve the NVIDIA/AMD differences recorded above. All six
+explicit graphics adapter/API combinations pass native validation, and CUDA
+memory checking is clean. Complete matrices pass **329/329** and **248/248**;
+installed shared/static CUDA consumers pass. The [checkpoint](plans/2026-10-19-gvdb-public-downsample-checkpoint.md)
+records contracts, hardware findings and evidence. Resample ownership migration
+is in progress; no legacy reference retirement is authorized.
