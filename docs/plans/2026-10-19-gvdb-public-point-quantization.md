@@ -1,6 +1,6 @@
 # Public point quantization implementation plan
 
-Status: authorized implementation continuation, 2026-10-19.
+Status: implemented; Windows acceptance recorded, 2026-10-19.
 
 ## Problem and intended behavior
 
@@ -56,6 +56,37 @@ and performance acceptance separate; retain all reference implementations.
 
 ## Execution record
 
-API descriptors and offline encode/decode kernels have been drafted; the ticket
-implementation and validation are in progress. This plan does not claim weighted inverse-distance color
-acceptance or completion of the mega project.
+Implemented the additive device factory, validated encode/decode artifacts,
+explicit record/completion ticket, authenticated decoded PointSet creation,
+logical/GPU code views and budgets. Point-cloud uses public source conversion
+and quantization directly; it retains original points for association and decoded
+points for evaluation. Diagnostic tests borrow actual public codes, validate them
+independently, then use them for the gather reference. Production no longer calls
+the retained conversion/quantization/decode helpers.
+
+Evidence is under `build/m5-public-quantize` (initial integration logs under
+`build/point-quantize-integration-*`):
+
+- ABI/default/version/output checks and all four GPU quantization tests pass 5/5.
+  GPU tests cover Float3/Float4, empty/odd/tail counts, explicit/padded bounds,
+  clamping, exact W/attribute transport, CPU/GPU coherence, exact budgets,
+  authentication, wrong factory, one-use lifetime and altered artifacts.
+- Initial quantization plus analytic/full-asset/app tests pass 16/16. Rendering
+  and RT clipping fixtures pass 10/10.
+- Quantization and analytic reconstruction pass native validation on NVIDIA and
+  AMD through D3D11/D3D12/Vulkan. Both CUDA memchecks report zero errors.
+- Standalone installed static and shared API consumers pass 2/2 each, including
+  released source/operator lifetime and actual-code decoded results. Both link
+  the shared NVRHI runtime. Consumer CUDA Toolkit discovery is disabled.
+- The graphics-only/CUDA-discovery-disabled build and acceptance matrix pass.
+- Preserved portable capture comparison is recorded in `image-comparison.json`.
+  Vulkan compute is identical. D3D11/D3D12/CUDA compute change six pixels by one
+  byte. D3D12 RT changes eight pixels and CUDA RT eleven, maximum byte delta12;
+  Vulkan RT changes one pixel by one byte. Explicit public conversion now has
+  its defined binary32 operation order; independent conversion/reconstruction
+  references pass. Universal image bit identity is not claimed.
+
+The full-suite counts in the earlier checkpoint remain historical; this slice
+ran focused API/sample and package acceptance. Linux, supported native multi-GPU,
+broad performance/visual acceptance and reference retirement remain open.
+Weighted inverse-distance color and remaining deposition/consumer work continue.
