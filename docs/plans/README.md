@@ -81,3 +81,5 @@ Keep local user paths, machine names and credentials out of plans. Use repositor
 | [GVDB resample consumer checkpoint](2026-10-19-gvdb-resample-consumer-checkpoint.md) | Owned resample and full Windows matrices validated; 3d-print ownership continues | See plan |
 | [GVDB 3d-print ownership checkpoint](2026-10-19-gvdb-print-ownership-checkpoint.md) | Owned publication/viewing validated; public mesh voxelizer remains | See plan |
 | [GVDB public mesh voxelizer checkpoint](2026-10-19-gvdb-public-voxelize-checkpoint.md) | Public two-phase voxelizer and 3d-print validated; remaining point-cloud/gather and platform gates continue | See plan |
+| [GVDB owned point-cloud and separate gather evaluation checkpoint](2026-10-19-gvdb-owned-point-cloud-checkpoint.md) | Both full Windows matrices validated; public quantization continues | See plan |
+| [GVDB public point quantization](2026-10-19-gvdb-public-point-quantization.md) | Authorized; implementation in progress | See plan |

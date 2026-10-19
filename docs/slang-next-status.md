@@ -298,3 +298,22 @@ The 100-entry inventory now has 31 owned-validated, 12 sample-validated,
 27 portable-foundation, 24 partial and 6 pending roles. Weighted ushort color,
 scatter, remaining ownership consumers, Linux, supported native multi-GPU routes,
 broader interactive/visual/performance gates and reference retirement remain open.
+
+
+## Owned point-cloud and separate gather evaluation (2026-10-19)
+
+Samples `ab85dff` adds queryable separate association/evaluation positions and
+migrates point-cloud topology, gather, aprons, smoothing and viewing to public
+owners/snapshots. The mixed RT renderer consumes raw channels directly. Both
+complete Windows matrices pass **334/334 (226.93 seconds)** and **252/252
+(219.16 seconds)** without skips. Both graphics adapters pass native fixtures;
+CUDA memory checks, installed static/shared API consumers, tests-disabled
+production and bounded compute windows pass. Compute captures match the prior
+portable images exactly; RT differs by at most one byte in two color channels.
+See the [checkpoint](plans/2026-10-19-gvdb-owned-point-cloud-checkpoint.md).
+
+A [public quantization operator](plans/2026-10-19-gvdb-public-point-quantization.md)
+is now being implemented to replace the explicit application decode/readback/
+PointSet upload sequence. Weighted ushort color, deposition, other ownership
+consumers and the existing platform/performance/reference-retirement gates remain
+open; the 100-entry role counts are unchanged.
