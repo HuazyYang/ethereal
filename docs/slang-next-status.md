@@ -398,3 +398,14 @@ Inventory is **36 owned-validated / 14 sample-validated / 27 portable-foundation
 23 partial / 0 pending**. The project remains in progress: packed velocity and
 public subcell storage, exact legacy exports, broader visual/performance and
 platform acceptance remain. No reference retirement is authorized.
+
+## Public packed velocity encoding (2026-10-19)
+
+The [velocity factory](plans/2026-10-19-gvdb-velocity-quantization.md) adds signed
+unpadded extrema, constant-axis repair and GPU ushort3 encode/decode while
+preserving position metadata, color and W payloads. Four-API/ABI tests pass **5/5**,
+38 affected point/gather/sample regressions pass, both native graphics adapters
+pass, CUDA memory checking is clean, and installed static/shared consumers pass
+**2/2 each**. Graphics-only acceptance is **4/4**. Inventory remains **36/14/27/23/0**;
+public expanded subcell storage is next. Platform, visual/performance and retained
+reference gates remain open.

@@ -91,3 +91,4 @@ Keep local user paths, machine names and credentials out of plans. Use repositor
 | [GVDB obstacle-volume mapping](2026-10-19-gvdb-obstacle-mapping.md) | Implemented; four APIs, both native adapters, memory and installed packages pass | See plan |
 | [GVDB tricubic surface](2026-10-19-gvdb-tricubic-surface.md) | Implemented; four APIs, both native adapters, memory and production acceptance pass | See plan |
 | [OptiX diagnostics](2026-10-19-optix-diagnostics.md) | Implemented; SDK validation, isolated failure, installed packages and full Windows regression pass | See plan |
+| [GVDB velocity quantization](2026-10-19-gvdb-velocity-quantization.md) | Implemented; four APIs, both native adapters, memory and installed packages pass | See plan |
