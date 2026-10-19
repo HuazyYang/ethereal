@@ -359,3 +359,13 @@ byte in 177?180 pixels. Inventory counts remain unchanged: exact legacy ray-buff
 compatibility is still separate. Obstacle mapping, tricubic and exception
 disposition are the three pending roles; platform, visual/performance and
 reference-retirement gates remain open.
+
+## Public obstacle-volume mapping (2026-10-19)
+
+The [public mapping operation](plans/2026-10-19-gvdb-obstacle-mapping.md) replaces
+`gvdbMapExtraGVDB` using authenticated retained snapshots, explicit slot ordering
+and checked signed leaf lookup. Four-API/ABI tests pass **5/5**, graphics-only
+**4/4**, both native adapters pass, CUDA memcheck is clean, and installed static/
+shared consumers pass **2/2 each**. Inventory now has **36 owned-validated / 12
+sample-validated / 27 portable-foundation / 23 partial / 2 pending**. Tricubic
+rendering and OptiX exception disposition are next; broader gates remain open.
