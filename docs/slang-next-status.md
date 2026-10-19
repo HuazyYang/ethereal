@@ -333,3 +333,16 @@ shared snapshots for compute/RT rendering. Focused acceptance includes 19 fluid
 cases, seven expanded analytic cases, both graphics adapters, CUDA memcheck, and
 24 graphics-only fluid/interactive cases. See the [execution record](plans/2026-10-19-gvdb-fluid-owned-snapshot.md).
 The remaining point deposition operators and spray ownership are next.
+
+## Public point deposition (2026-10-19)
+
+The [public deposition operator](plans/2026-10-19-gvdb-public-point-deposition.md)
+now publishes central/six-neighbor scalar contributions, exact last/average color,
+and original-leaf shifted XZ support/material through ordinary generation tickets.
+It removes raced scatter writes using stable input ordinals and preserves physical
+same-brick apron behavior. ABI/four-API acceptance is **5/5**; graphics-only is
+**4/4**. All six native graphics adapter/API combinations and CUDA memcheck pass;
+installed static/shared GVDB consumers pass **2/2 each**. Logs are in
+`build/m5-point-deposit`. Inventory: **35 owned-validated / 12 sample-validated /
+27 portable-foundation / 23 partial / 3 pending**. Spray ownership and retained
+snapshot queries are next; full project acceptance remains open.
