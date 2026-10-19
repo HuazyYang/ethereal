@@ -1,0 +1,32 @@
+# M5 public mesh voxelization checkpoint
+
+Status: public operator and 3d-print integration implemented and validated on Windows, 2026-10-19. Both complete regression matrices pass; the mega project remains in progress.
+
+Samples `c6bbd34` adds the additive `IGVDBVoxelize` / `IGVDBVoxelizeTicket` interfaces, which accept copied Float4 vertices, flat triangle indices, affine rows, finite grid bounds and R8_UINT/R32_FLOAT/R32_SINT classification values. Explicit input, buffer allocation, triangle/bin and voxel/triangle budgets bound preparation. Authenticated caller recording counts triangle/bin references, followed by caller submission/wait and checked prefix/allocation completion. A second recording scatters triangles and classifies the dense grid. Caller completion exposes immutable CPU bytes and retained raw GPU storage. No phase submits, waits, changes a volume owner or introduces another execution abstraction. Failures preserve completion outputs and allocation stage; wrong/foreign/repeated/out-of-order tickets are rejected. See the [public contract](../../ethereal-samples/src/gvdb_samples/gvdb/GVDBNvrhiVoxelizeApi.md).
+
+Factory creation validates all four offline artifacts: entry/group shape, nine resource bindings, and the complete 128-byte constants layout including the transform array. Independent tickets retain device/pipelines/storage after factory release. Count completion allocates temporary handles and commits only after success. Empty meshes produce exterior fill; R8 tail padding is zero. Static/shared API installation adds the public header, contract and shader sources, without STL types at the interface boundary.
+
+3d-print now uses these public phases before host sparse-mask selection and public resample publication. Its old ComputeRuntime voxelizer helper is no longer called. Classification readback remains explicit. Failure before publication preserves the prior visible state; old snapshots remain valid across rebuilds. The retained helper/shader and all legacy sources remain available.
+
+## Numerical correction
+
+The new integer-aligned cube fixture reproduced an AMD D3D11 corner miss in the previous shader: voxel zero was exterior instead of surface because approximate graphics division crossed a triangle/box boundary. `GVDBMeshVoxelize.slang` preserves the SAT/parity algorithm but uses portable uint32 mantissa/remainder division with nearest/ties-to-even rounding for geometric quotients and declares Vulkan RTE32. No epsilon adjustment is introduced. The independent CPU oracle covers 250,035 binary32 pairs; 4,131 fixed compiled GPU bit goldens cover signed zero, subnormal and overflow results. A DXBC float-return signed-zero canonicalization found during this check led to a separate integer result helper. Native float consumers retain target denormal behavior. Affine/SAT arithmetic and arbitrary legacy decision boundaries are not promised universally bit-identical. Conservative finite-operation bounds are documented and can reject extreme translated scenes that need rebasing.
+
+## Verification
+
+- Public ABI/four-backend plus migrated analytic/Lucy tests pass **13/13 in 15.18 seconds**: `build/m5-public-voxelize/affected-tests.log`.
+- All six explicit NVIDIA RTX4050/AMD Radeon780M graphics adapter/API combinations pass the public operator and compiled division corpus with native validation: `{dx11,dx12,vk}-adapter{0,1}-native.log`.
+- Both adapters pass migrated analytic/Lucy tests. Bounded two-frame topology windows pass on all three graphics APIs: `print-*-analytic.log`, `print-*-lucy.log`, `print-*-window.log`.
+- Public operator and migrated analytic/Lucy CUDA Compute Sanitizer runs report zero errors: `cuda-memcheck.log`, `print-cuda-{analytic,lucy}-memcheck.log`.
+- Installed static/shared API consumers each pass **2/2**, including all three formats and factory-release completion through CUDA. Both use the installed shared NVRHI runtime; CUDA Toolkit discovery is disabled. A first attempted static NVRHI prefix lacked its separate ShaderTool package, so this check uses the same installed runtime configuration as prior API checkpoints. It does not claim new all-static NVRHI packaging coverage.
+- Tests-disabled/CUDA-discovery-disabled production builds and verifies Lucy on explicit AMD DX11: `production-{configure,build,run}.log`.
+- Lucy retains **47 leaves, 56,839 surface and 131,750 interior voxels**. All four captures exactly match preserved previous-portable references; production exactly matches explicit AMD DX11: `image-comparison.json`.
+- Complete matrices pass **334/334 in 440.40 seconds** and graphics-only **252/252 in 319.66 seconds**, with no failures or skips. Logs: `full-tests.log`, `full-graphics-tests.log`; JUnit: `build/m5-public-voxelize-full-tests.xml` and `build/graphics-only/m5-public-voxelize-full-tests.xml`. These are full functional regressions, not controlled performance measurements.
+
+Logs above are under `build/m5-public-voxelize`. These checks do not establish broad performance acceptance. The retained CUDA inventory remains 100 entries, now **31 owned-validated / 12 sample-validated / 27 portable-foundation / 24 partial / 6 pending** roles. The three voxelization roles are promoted; no reference retirement is authorized.
+
+Scatter, normalized-ushort inverse-distance color gathering, remaining ownership consumers, Linux, supported native multi-GPU routes, broader interactive/visual/performance acceptance and reference retirement remain open.
+
+## Next consumer dependency found during review
+
+Point-cloud reconstruction still bins original converted positions **before** quantizing/dequantizing the per-bin positions. `PointCloudReconstruction.cpp` explicitly preserves original subcell membership when quantization moves a position across a boundary. Routing the decoded positions directly into the current ordinary public gather would re-bin them and change that behavior. The next gather/point-cloud slice must retain separate association and evaluation positions (or an equivalent authenticated quantization stage), preserve signed-axis topology support, then publish through the existing owner/apron/filter APIs and snapshot viewer. The legacy normalized-ushort color kernel additionally sums color/distance and leaves exact zero distance undefined; it needs an explicit finite zero-distance policy and independent weighted-color tests. Point-cloud currently requests no color channel, so ownership migration must not be presented as acceptance of that separate color role.

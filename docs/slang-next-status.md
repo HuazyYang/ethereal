@@ -280,3 +280,21 @@ records evidence and the next public mesh-voxelizer contract. Its existing
 portable voxelizer helper remains explicit; this does not complete the operator
 or authorize reference retirement. The preceding full matrices remain 329/329
 and 248/248 and precede this ownership slice.
+
+
+## Public mesh voxelizer and completed 3d-print operator migration (2026-10-19)
+
+Samples `c6bbd34` adds the public device-only two-phase mesh voxelizer and moves
+3d-print onto explicit count/sizing/classification recording and completion.
+Exact geometric division fixes an AMD DX11 integer-face omission; both graphics
+adapters pass native validation and 4,131 compiled division bit goldens. CUDA
+memory checks, installed static/shared API consumers and tests-disabled graphics
+production pass. All four Lucy captures exactly match preserved portable images.
+Complete matrices pass **334/334 (440.40 seconds)** and **252/252 (319.66 seconds)**,
+with no skips. See the [execution record](plans/2026-10-19-gvdb-public-voxelize-checkpoint.md)
+for contracts, logs, numerical limits and the next point-cloud dependency:
+subcell association must remain based on positions before quantization.
+The 100-entry inventory now has 31 owned-validated, 12 sample-validated,
+27 portable-foundation, 24 partial and 6 pending roles. Weighted ushort color,
+scatter, remaining ownership consumers, Linux, supported native multi-GPU routes,
+broader interactive/visual/performance gates and reference retirement remain open.
