@@ -24,7 +24,7 @@ refreshes scalar aprons, and retains the resulting snapshot as its sole GPU
 volume. Metadata and mixed RT bindings refer to that same publication. Original
 CPU packed data remains only as input/topology-overlay data, not a GPU renderer.
 
-All15 analytic and asset tests pass across D3D12/Vulkan/CUDA OptiX (16.25 seconds).
+All 15 analytic and asset tests pass across D3D12/Vulkan/CUDA OptiX (16.25 seconds).
 They include four shading modes, original equations/controls, malformed-input
 rejection, same-device raw snapshot identity, and rendering after the application
 scene/temporary owner are destroyed. All12 captures are byte-identical to the
@@ -33,7 +33,7 @@ validation; CUDA memcheck reports zero errors. A tests-disabled and CUDA-discove
 disabled production build renders the real asset with explicit AMD D3D12 native
 validation and coverage checks. Evidence: `build/m5-interactive-owned`.
 
-The prior339/339 and256/256 full matrices precede this consumer-only change;
+The prior 339/339 and 256/256 full matrices precede this consumer-only change;
 focused acceptance above validates this slice. No broad performance, legacy
 visual parity, Linux or reference-retirement completion is claimed. Fluid
 ownership and pending deposition/other kernel roles continue.

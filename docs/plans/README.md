@@ -85,3 +85,4 @@ Keep local user paths, machine names and credentials out of plans. Use repositor
 | [GVDB public point quantization](2026-10-19-gvdb-public-point-quantization.md) | Implemented; Windows API/sample/package acceptance recorded | See plan |
 | [GVDB inverse-distance gather](2026-10-19-gvdb-inverse-distance-gather.md) | Implemented; full Windows matrices and installed consumers pass | See plan |
 | [GVDB interactive owned snapshot](2026-10-19-gvdb-interactive-owned-snapshot.md) | Implemented; focused Windows acceptance and exact captures pass | See plan |
+| [GVDB fluid owned snapshot](2026-10-19-gvdb-fluid-owned-snapshot.md) | Implemented; focused Windows acceptance recorded | See plan |

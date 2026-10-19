@@ -48,7 +48,7 @@ acceptance open. Record results here before marking this slice accepted.
 - Installed static/shared API consumers pass 2/2 each with CUDA Toolkit discovery
   disabled, testing the new exported factory and retained streams. Both use the
   shared NVRHI runtime.
-- Complete matrices pass **339/339 in214.85 seconds** and **256/256 in164.09
+- Complete matrices pass **339/339 in 214.85 seconds** and **256/256 in 164.09
   seconds**, without failures/skips. Logs and JUnit are `full-tests.*` and
   `full-graphics-tests.*` in that directory. These runs include public point
   quantization, and precede interactive-optix's owned-snapshot migration.
@@ -58,8 +58,8 @@ acceptance open. Record results here before marking this slice accepted.
   no active associations. A transient Windows executable-lock link failure
   succeeded on retry. Neither required a production contract relaxation.
 
-Inventory: 100 retained entries, now32 owned-validated,12 sample-validated,
-27 portable-foundation,23 partial and6 pending. Normalized-ushort position
+Inventory: 100 retained entries, now 32 owned-validated, 12 sample-validated,
+27 portable-foundation, 23 partial and 6 pending. Normalized-ushort position
 quantization preserves canonical auxiliary attributes but does not claim legacy
 packed velocity encoding. No source retirement is authorized. Deposition,
 remaining consumer ownership and external platform/performance gates continue.

@@ -320,12 +320,16 @@ sample and installed-consumer acceptance is recorded in the linked plan.
 The [inverse-distance gather](plans/2026-10-19-gvdb-inverse-distance-gather.md)
 adds a separate factory and entry, preserving the unnormalized weighted sum with
 defined saturation and zero-distance behavior. Native Windows, CUDA memory and
-installed-consumer tests pass. Complete regression matrices pass339/339 and
+installed-consumer tests pass. Complete regression matrices pass 339/339 and
 256/256, before the following interactive ownership slice.
 The 100-entry inventory has 32 owned-validated, 12 sample-validated, 27 portable
 foundations, 23 partial and 6 pending roles. Deposition, packed velocity storage,
 remaining ownership consumers and platform/performance/reference-retirement gates
-remain open. Interactive mixed-scene snapshot migration now passes15/15 analytic/asset
-tests with all12 captures byte-identical, both RT adapters, CUDA memory checking,
+remain open. Interactive mixed-scene snapshot migration now passes 15/15 analytic/asset
+tests with all 12 captures byte-identical, both RT adapters, CUDA memory checking,
 and a tests-disabled production build. See the [execution record](plans/2026-10-19-gvdb-interactive-owned-snapshot.md).
-Fluid ownership is next.
+Fluid reconstruction now uses public owned points/topology/gather/aprons and
+shared snapshots for compute/RT rendering. Focused acceptance includes 19 fluid
+cases, seven expanded analytic cases, both graphics adapters, CUDA memcheck, and
+24 graphics-only fluid/interactive cases. See the [execution record](plans/2026-10-19-gvdb-fluid-owned-snapshot.md).
+The remaining point deposition operators and spray ownership are next.
