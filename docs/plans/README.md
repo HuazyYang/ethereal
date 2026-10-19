@@ -87,3 +87,4 @@ Keep local user paths, machine names and credentials out of plans. Use repositor
 | [GVDB interactive owned snapshot](2026-10-19-gvdb-interactive-owned-snapshot.md) | Implemented; focused Windows acceptance and exact captures pass | See plan |
 | [GVDB fluid owned snapshot](2026-10-19-gvdb-fluid-owned-snapshot.md) | Implemented; focused Windows acceptance recorded | See plan |
 | [GVDB public point deposition](2026-10-19-gvdb-public-point-deposition.md) | Implemented; four APIs, native validation and installed consumers pass | See plan |
+| [GVDB spray owned snapshot](2026-10-19-gvdb-spray-owned-snapshot.md) | Implemented; focused Windows, native, memory and production acceptance recorded | See plan |

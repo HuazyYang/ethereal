@@ -346,3 +346,16 @@ installed static/shared GVDB consumers pass **2/2 each**. Logs are in
 `build/m5-point-deposit`. Inventory: **35 owned-validated / 12 sample-validated /
 27 portable-foundation / 23 partial / 3 pending**. Spray ownership and retained
 snapshot queries are next; full project acceptance remains open.
+
+## Spray retained snapshot ownership (2026-10-19)
+
+Spray now uses public mesh/topology/resample/point/gather/apron/filter operations
+and retained raw snapshots for ray queries and all five render modes. The
+[execution record](plans/2026-10-19-gvdb-spray-owned-snapshot.md) records 19 affected
+and eight expanded tests, six native graphics combinations, CUDA memcheck,
+15 graphics-only tests and a tests-disabled AMD production run. Modes 0?3 match
+previous portable captures exactly; compositing differs by at most one channel
+byte in 177?180 pixels. Inventory counts remain unchanged: exact legacy ray-buffer
+compatibility is still separate. Obstacle mapping, tricubic and exception
+disposition are the three pending roles; platform, visual/performance and
+reference-retirement gates remain open.
