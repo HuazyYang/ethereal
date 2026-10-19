@@ -409,3 +409,15 @@ pass, CUDA memory checking is clean, and installed static/shared consumers pass
 **2/2 each**. Graphics-only acceptance is **4/4**. Inventory remains **36/14/27/23/0**;
 public expanded subcell storage is next. Platform, visual/performance and retained
 reference gates remain open.
+
+## Public retained subcell storage (2026-10-19)
+
+The [subcell API](plans/2026-10-19-gvdb-public-subcells.md) retains immutable
+snapshots/points, exposes stable ranges, signed cell locations and original point
+ordinals, and expands exact canonical attributes on the GPU. Position/velocity
+ushort3 factories compose on the result. Full Windows regression passes
+**365/365** in 211.39 seconds; graphics-only passes **274/274** in 160.00 seconds.
+Both native graphics adapters, CUDA memory checking and installed static/shared
+consumers pass. Inventory is **41/14/23/22/0**; scalar-grid queries and safe legacy
+velocity diagnostics are next. Broader consumer/platform/visual/performance
+gates remain open, with no retained source retirement.
