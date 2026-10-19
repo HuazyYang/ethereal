@@ -62,3 +62,7 @@ undefined legacy behavior.
 Inventory is 36 owned-validated / 12 sample-validated / 27 portable-foundation /
 23 partial / 2 pending. Tricubic rendering and OptiX exception disposition remain
 pending, alongside partial-role, platform, visual/performance and reference gates.
+
+Post-checkpoint complete Windows regression: **349/349**, 211.71 seconds, no skips
+(`build/m5-obstacle/full-tests.log` and `full-tests.xml`). This includes the spray
+ownership migration and precedes the new tricubic renderer.

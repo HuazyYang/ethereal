@@ -369,3 +369,19 @@ and checked signed leaf lookup. Four-API/ABI tests pass **5/5**, graphics-only
 shared consumers pass **2/2 each**. Inventory now has **36 owned-validated / 12
 sample-validated / 27 portable-foundation / 23 partial / 2 pending**. Tricubic
 rendering and OptiX exception disposition are next; broader gates remain open.
+
+The complete Windows regression after obstacle mapping passes **349/349**,
+211.71 seconds, without skips (`build/m5-obstacle/full-tests.log`). Tricubic
+rendering is now being implemented and is not included in that result.
+
+## Retained tricubic surface (2026-10-19)
+
+The [tricubic renderer](plans/2026-10-19-gvdb-tricubic-surface.md) consumes public
+retained snapshots with the original quadratic interpolation contract and
+explicit border/refinement repairs. Four-API analytic/asset tests pass **8/8**,
+both native graphics adapters pass, CUDA memory checks are clean and production
+renders successfully. Full Windows regression passes **357/357** in 199.85 seconds;
+graphics-only passes **270/270** in 176.20 seconds, both without skips. Inventory:
+**36 owned-validated / 13 sample-validated / 27 portable-foundation / 23 partial /
+1 pending**. OptiX diagnostic disposition is next; legacy visual, performance,
+Linux and supported multi-GPU gates remain open.

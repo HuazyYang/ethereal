@@ -89,3 +89,4 @@ Keep local user paths, machine names and credentials out of plans. Use repositor
 | [GVDB public point deposition](2026-10-19-gvdb-public-point-deposition.md) | Implemented; four APIs, native validation and installed consumers pass | See plan |
 | [GVDB spray owned snapshot](2026-10-19-gvdb-spray-owned-snapshot.md) | Implemented; focused Windows, native, memory and production acceptance recorded | See plan |
 | [GVDB obstacle-volume mapping](2026-10-19-gvdb-obstacle-mapping.md) | Implemented; four APIs, both native adapters, memory and installed packages pass | See plan |
+| [GVDB tricubic surface](2026-10-19-gvdb-tricubic-surface.md) | Implemented; four APIs, both native adapters, memory and production acceptance pass | See plan |
