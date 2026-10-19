@@ -432,3 +432,13 @@ cases. Four-API/ABI tests pass **5/5**; affected regressions **25/25**; graphics
 adapters and CUDA memory checking pass. Inventory is **43/14/23/20/0**; remaining
 public association/split/marking roles and broad consumer/platform/visual/performance
 acceptance continue. No source retirement is authorized.
+
+## Public point-to-leaf insertion (2026-10-19)
+
+The [insertion extension](plans/2026-10-19-gvdb-point-insertion.md) shares subcell
+GPU expansion and immutable tickets while adding center/velocity-support lookup,
+stable leaf ranges and original point ordinals. Existing interfaces remain intact.
+Final affected regressions pass **30/30**, native NVIDIA/AMD routes pass, CUDA
+memory checking is clean, installed static/shared consumers pass **2/2 each**,
+and graphics-only acceptance is **8/8**. Inventory is **46/14/20/20/0**; remaining
+marking/split, export/consumer and platform/visual/performance gates stay open.

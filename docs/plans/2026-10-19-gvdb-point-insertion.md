@@ -26,3 +26,36 @@ source attribute association, empty/inactive/signed/shifted cases, sentinel beha
 exact budgets, retained ownership and malformed inputs. Run four APIs, native
 adapters, CUDA memory and installed consumers. Keep broader performance/platform,
 legacy visual and source-retirement gates explicit.
+
+## Execution and verification
+
+Implemented `IGVDBPointInsertion` / `createPointInsertion` in the existing subcell
+implementation. Existing interfaces/descriptors remain unchanged; explicit
+IRHIObject routing keeps canonical IObject identity across both queryable APIs.
+An initial ambiguous multiple-base interface table was corrected before testing.
+No new shader algorithm or native API dependency: checked two-pass O(N log L)
+host association feeds the existing Slang GPU attribute expansion. The insertion
+request's velocity stream supplies support direction, and output keeps the
+original translated position, never the support lookup position.
+
+Independent brute-force box tests cover signed/offset/inactive/empty topology,
+all optional attributes, Float3/4 position and velocity, positive/negative support
+offsets, NaN direction rejection with exact center-mode transport, overflowing
+support math, exact budgets, retained lifetime and quantizer composition. A
+cancelling -1e10 Z translation verifies sentinel rejection occurs before translation.
+GPU ranges/locations/ordinals and actual expanded attributes match CPU references.
+
+- Insertion plus existing subcell ABI/four-API acceptance: **10/10**, 5.15 seconds.
+- Final affected point/gather/quantization/subcell/grid-query/insertion regression:
+  **30/30**, 12.90 seconds, including the final sentinel/overflow cases.
+- Six native graphics routes (D3D11/D3D12/Vulkan, NVIDIA/AMD): pass.
+- CUDA Compute Sanitizer: zero errors.
+- Installed static/shared consumers: **2/2 each**, 1.86/0.50 seconds.
+- Graphics-only subcell/insertion acceptance: **8/8**, 3.77 seconds, with CUDA
+  discovery disabled during configure/build.
+
+Logs are under `build/m5-point-insertion`. Inventory now records **46 owned-
+validated / 14 sample-validated / 20 portable-foundation / 20 partial / 0 pending**.
+No positional CUDA ABI or arbitrary atomic scheduling compatibility is claimed.
+Marking/split and remaining legacy export/consumer roles, Linux, supported native
+multi-GPU and broad visual/performance gates remain open. No source retirement.
