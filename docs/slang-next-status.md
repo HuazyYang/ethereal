@@ -442,3 +442,12 @@ Final affected regressions pass **30/30**, native NVIDIA/AMD routes pass, CUDA
 memory checking is clean, installed static/shared consumers pass **2/2 each**,
 and graphics-only acceptance is **8/8**. Inventory is **46/14/20/20/0**; remaining
 marking/split, export/consumer and platform/visual/performance gates stay open.
+
+## Public coordinate splitting (2026-10-19)
+
+The [split query](plans/2026-10-19-gvdb-point-split.md) exposes retained position/
+velocity coordinate planes and exact actual-GPU extrema. Four-API/ABI tests pass
+**5/5**, affected regressions **25/25**, graphics-only **4/4**, installed static/
+shared consumers **2/2 each**, native adapters and CUDA memory checks pass.
+Inventory is **47/14/19/20/0**. Leaf markers, rendering/export/consumer and broader
+platform/visual/performance acceptance remain open; no source retirement.
