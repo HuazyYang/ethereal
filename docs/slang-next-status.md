@@ -385,3 +385,16 @@ graphics-only passes **270/270** in 176.20 seconds, both without skips. Inventor
 **36 owned-validated / 13 sample-validated / 27 portable-foundation / 23 partial /
 1 pending**. OptiX diagnostic disposition is next; legacy visual, performance,
 Linux and supported multi-GPU gates remain open.
+
+## OptiX exception disposition (2026-10-19)
+
+The [diagnostic implementation](plans/2026-10-19-optix-diagnostics.md) adds an
+ABI-preserving opt-in CUDA validation factory and sample --validation support.
+Tagged SDK diagnostics and failed launch/completion replace the retained
+exception program's black-pixel recovery. Positive RT and isolated trace-depth
+failure tests pass, static/shared installed exports pass, and memcheck is clean.
+Full Windows regression passes **360/360** in 201.12 seconds, without skips.
+Inventory is **36 owned-validated / 14 sample-validated / 27 portable-foundation /
+23 partial / 0 pending**. The project remains in progress: packed velocity and
+public subcell storage, exact legacy exports, broader visual/performance and
+platform acceptance remain. No reference retirement is authorized.
