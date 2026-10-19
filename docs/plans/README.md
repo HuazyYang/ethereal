@@ -93,3 +93,4 @@ Keep local user paths, machine names and credentials out of plans. Use repositor
 | [OptiX diagnostics](2026-10-19-optix-diagnostics.md) | Implemented; SDK validation, isolated failure, installed packages and full Windows regression pass | See plan |
 | [GVDB velocity quantization](2026-10-19-gvdb-velocity-quantization.md) | Implemented; four APIs, both native adapters, memory and installed packages pass | See plan |
 | [GVDB public subcells](2026-10-19-gvdb-public-subcells.md) | Implemented; full Windows/graphics matrices, native adapters, memory and installed packages pass | See plan |
+| [GVDB scalar-grid queries](2026-10-19-gvdb-grid-query.md) | Implemented; four APIs, native adapters, memory and installed packages pass | See plan |

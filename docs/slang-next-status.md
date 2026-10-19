@@ -421,3 +421,14 @@ Both native graphics adapters, CUDA memory checking and installed static/shared
 consumers pass. Inventory is **41/14/23/22/0**; scalar-grid queries and safe legacy
 velocity diagnostics are next. Broader consumer/platform/visual/performance
 gates remain open, with no retained source retirement.
+
+## Public scalar-grid queries (2026-10-19)
+
+The [query API](plans/2026-10-19-gvdb-grid-query.md) supplies retained scalar reads
+and safe Y-face diagnostics over owned R32 channels and canonical points. Signed
+lookup, aligned comparison and explicit IEEE tap handling repair unsafe legacy
+cases. Four-API/ABI tests pass **5/5**; affected regressions **25/25**; graphics-only
+**4/4**; installed static/shared consumers **2/2 each**. Both native graphics
+adapters and CUDA memory checking pass. Inventory is **43/14/23/20/0**; remaining
+public association/split/marking roles and broad consumer/platform/visual/performance
+acceptance continue. No source retirement is authorized.
