@@ -313,7 +313,16 @@ portable images exactly; RT differs by at most one byte in two color channels.
 See the [checkpoint](plans/2026-10-19-gvdb-owned-point-cloud-checkpoint.md).
 
 A [public quantization operator](plans/2026-10-19-gvdb-public-point-quantization.md)
-is now being implemented to replace the explicit application decode/readback/
-PointSet upload sequence. Weighted ushort color, deposition, other ownership
-consumers and the existing platform/performance/reference-retirement gates remain
-open; the 100-entry role counts are unchanged.
+is implemented and used by point-cloud (`ethereal-samples` commit `6a7ab23`),
+removing the application decode/readback/reupload sequence. Its focused API,
+sample and installed-consumer acceptance is recorded in the linked plan.
+
+The [inverse-distance gather](plans/2026-10-19-gvdb-inverse-distance-gather.md)
+adds a separate factory and entry, preserving the unnormalized weighted sum with
+defined saturation and zero-distance behavior. Native Windows, CUDA memory and
+installed-consumer tests pass. Complete regression matrices pass339/339 and
+256/256, before the following interactive ownership slice.
+The 100-entry inventory has 32 owned-validated, 12 sample-validated, 27 portable
+foundations, 23 partial and 6 pending roles. Deposition, packed velocity storage,
+remaining ownership consumers and platform/performance/reference-retirement gates
+remain open. Interactive mixed-scene snapshot migration is in progress.

@@ -83,3 +83,5 @@ Keep local user paths, machine names and credentials out of plans. Use repositor
 | [GVDB public mesh voxelizer checkpoint](2026-10-19-gvdb-public-voxelize-checkpoint.md) | Public two-phase voxelizer and 3d-print validated; remaining point-cloud/gather and platform gates continue | See plan |
 | [GVDB owned point-cloud and separate gather evaluation checkpoint](2026-10-19-gvdb-owned-point-cloud-checkpoint.md) | Both full Windows matrices validated; public quantization continues | See plan |
 | [GVDB public point quantization](2026-10-19-gvdb-public-point-quantization.md) | Implemented; Windows API/sample/package acceptance recorded | See plan |
+| [GVDB inverse-distance gather](2026-10-19-gvdb-inverse-distance-gather.md) | Implemented; full Windows matrices and installed consumers pass | See plan |
+| [GVDB interactive owned snapshot](2026-10-19-gvdb-interactive-owned-snapshot.md) | Authorized; implementation in progress | See plan |
