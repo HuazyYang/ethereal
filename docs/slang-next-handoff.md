@@ -138,3 +138,9 @@ errors**, graphics-only **11/11**, installed static/shared **2/2 each** pass.
 Distinct immutable constant ranges fix an observed NVIDIA D3D12 update failure;
 shader marker offsets avoid Vulkan storage-view alignment restrictions. GPU
 key-driven growth and compaction are still open. Full 433/326 matrices predate this.
+
+Latest completed full matrices at aggregate `4417702` / samples `3864daf`:
+**438/438 Windows** (242.89 s), **330/330 graphics-only** (186.96 s), clean
+committed gitlinks and no skips. Reports are
+`build/acceptance/{windows,graphics}-topology-final`; these supersede the earlier
+full-matrix counts above and include both topology factories.

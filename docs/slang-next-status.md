@@ -564,3 +564,9 @@ ten-level/tail, signed, all-inactive/reactivated trees. Focused compute/topology
 errors**, rebuilt installed static/shared consumers **2/2 each** pass. Existing
 interfaces keep their ABI. GPU key-driven new-node allocation and compaction,
 broader visual/performance comparisons and external platform gates remain open.
+
+Aggregate `4417702` / samples `3864daf` subsequently passes clean committed full
+matrices **438/438 Windows** (242.89 s) and **330/330 graphics-only** (186.96 s),
+without skips. Reports are `build/acceptance/{windows,graphics}-topology-final`.
+These runs include both topology-edit and activity factories and the independent
+integer-link tests. Linux and supported real-peer jobs remain unverified.
