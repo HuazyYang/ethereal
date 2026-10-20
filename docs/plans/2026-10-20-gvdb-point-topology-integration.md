@@ -76,8 +76,12 @@ Integrated algorithms/reconstruction/asset/rendering tests pass 22/22 on Windows
 All four compute and three RT point-cloud PNGs are byte-identical to the preceding
 portable checkpoint. Independent CPU oracles still validate support, topology,
 quantization, gathers, smoothing and aprons; the full asset requires multiple
-GPU key batches. Final native, sanitizer, graphics-only and full matrix evidence
-is recorded in the aggregate status after completion.
+GPU key batches. Final native general-compute/reconstruction checks pass **12/12**;
+the full asset passes CUDA memory checking with **zero errors**. Graphics-only
+affected applications pass **30/30**, installed topology consumers static/shared
+**2/2 each**. Aggregate `f2eae3e` / samples `40174a9` passes clean full matrices
+**438/438 Windows** and **330/330 graphics-only**, without skips. Detailed timings
+and reports are in the aggregate status.
 
 Local logs, three-run measurements and image hashes are under
 `build/acceptance/point-keys`. Linux and supported real CUDA peers remain external

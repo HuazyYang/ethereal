@@ -598,3 +598,22 @@ Inventory becomes **52 owned-validated / 48 sample-validated / 0 foundation /
 0 partial / 0 pending**, with fixture-specific corrections and external gates.
 These counts do not authorize reference retirement or claim universal pixel parity.
 Final clean full matrices follow separately; Linux and real peers remain required.
+
+Aggregate `f2eae3e` / samples `40174a9` subsequently passes **438/438 Windows**
+(239.90 s) and **330/330 graphics-only** (188.44 s), with no skipped tests.
+Both strict runners recorded clean committed gitlinks, and the source tree stayed
+unchanged throughout both runs. Reports are
+`build/acceptance/{windows,graphics}-integrated-final`. Installed topology packages
+were rebuilt, and static/shared consumers pass **2/2 each** with compiler and CUDA
+toolkit package discovery disabled. Tests-disabled production applications build.
+These results close the local full-matrix gate; required Linux Vulkan/CUDA and
+supported real CUDA peer acceptance are still unverified.
+
+Tests-disabled graphics-only point-cloud compute/RT and interactive controls pass.
+Its D3D11 compute and D3D12 RT captures exactly match the graphics-only test build.
+Comparing to the CUDA-enabled build instead gives three compute pixels differing
+by one byte and 78 RT pixels differing by at most seven; those configurations are
+not claimed byte-identical. All seven CUDA-enabled checkpoint captures still
+match their preserved baseline exactly. No source fix was needed for this check.
+Final installed NVRHI consumers pass static **2/2**, shared **1/1**; installed
+ray consumers pass static/shared **2/2 each**. Runtime gitlinks are unchanged.

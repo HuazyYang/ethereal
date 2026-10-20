@@ -57,10 +57,10 @@ Dependencies remain NVRHI `2c06d77`, Donut `c7ca1b2`, shader-tool `15b6ab0`.
 
 ## Validation
 
-Latest completed full matrices before this checkpoint: aggregate `4417702`,
-samples `3864daf`, **438/438 Windows** (242.89 s), **330/330 graphics-only**
-(186.96 s), clean committed gitlinks and no skips. Reports are under
-`build/acceptance/{windows,graphics}-topology-final`.
+Latest completed full matrices: aggregate `f2eae3e`, samples `40174a9`,
+**438/438 Windows** (239.90 s), **330/330 graphics-only** (188.44 s), clean
+committed gitlinks throughout and no skips. Reports are under
+`build/acceptance/{windows,graphics}-integrated-final`.
 
 Current focused integration checks: Windows algorithms/point-cloud **22/22**,
 graphics-only affected applications **30/30**, native general-compute and point
@@ -70,6 +70,15 @@ byte-identical to the preceding portable checkpoint. The mixed-RT fresh capture
 passes all documented per-mode and cross-API checks. Logs are under
 `build/acceptance/point-keys` and `build/acceptance/mixed-biased-holdout`.
 
+The tests-disabled graphics-only production build passes point-cloud D3D11
+compute, D3D12 RT/contribution checks and interactive controls. Both production
+captures exactly match the corresponding graphics-only test build. Against the
+CUDA-enabled build, compute differs by one byte in three pixels; RT differs in
+78 pixels with maximum byte difference seven. Cross-configuration identity is
+not claimed. All seven captures within the CUDA-enabled checkpoint remain exact.
+Installed NVRHI consumers also pass static **2/2**, shared **1/1**; installed ray
+consumers pass static/shared **2/2 each** at the final source checkpoint.
+
 Timing and memory are recorded separately from correctness. GPU key integration
 regresses D3D12/Vulkan process time, and portable full-scene reconstruction/render
 processes remain slower than retained CUDA/OptiX on this fixture. Reused logical
@@ -77,16 +86,13 @@ scan scratch is smaller; CPU peak working set is not GPU peak memory.
 
 ## Remaining acceptance work
 
-1. Finish the final clean committed Windows and graphics-only matrices and retain
-   their revision-stamped reports. Refresh installed-consumer evidence at the same
-   source checkpoint. No production source should change during those runs.
-2. Run `slang-next-linux` and `slang-next-linux-graphics` on an actual Linux
+1. Run `slang-next-linux` and `slang-next-linux-graphics` on an actual Linux
    Vulkan/CUDA host, including native validation, sanitizer and installed consumers.
    Use the strict runner's matching `linux-full` / `linux-graphics` profiles.
-3. On a supported CUDA pair, configure `NVRHI_TEST_REQUIRE_CUDA_PEER=ON`, select
+2. On a supported CUDA pair, configure `NVRHI_TEST_REQUIRE_CUDA_PEER=ON`, select
    actual local/peer ordinals and run the strict runner with `--require-peer`.
    Missing/unsupported hardware must fail; a local negative test is not acceptance.
-4. Only after the required external jobs pass, reconcile the final acceptance
+3. Only after the required external jobs pass, reconcile the final acceptance
    record and reference disposition. Keep `ETHEREAL_BUILD_GVDB_LEGACY` and retained
    sources available until then. Future ROCm/Metal/SYCL backends remain out of scope.
 

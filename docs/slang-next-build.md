@@ -10,7 +10,7 @@ Use Visual Studio 2022 with the C++ workload, CMake, Ninja, and the existing vcp
 .\build.ps1 -Preset slang-next -CMakeArgs '-DOPTIX_ROOT=C:/Program Files/NVIDIA GPU Computing Toolkit/OptiX SDK 9.0.0' -Target basic_triangle,headless,rt_triangle,shader_specializations,render-to-file,render-kernel,sph_fluid_pool,resample,3d-print,depth-map,point-fusion,point-cloud,interactive-optix,fluid-surface,gvdb_scene_rt_tests,gvdb_slang_tests,gvdb_rt_tests,slang_rt_shared,gvdb_volume_view_tests,gvdb_volume_surface_tests
 ```
 
-For graphics-only execution use `-Preset slang-next-graphics`. It disables the NVRHI CUDA and OptiX backends. Portable GVDB requires neither the CUDA language nor NVCC. An isolated build with `CMAKE_DISABLE_FIND_PACKAGE_CUDAToolkit=TRUE` has compiled the complete graphics configuration and passed 146 CTests locally.
+For graphics-only execution use `-Preset slang-next-graphics`. It disables the NVRHI CUDA and OptiX backends. Portable GVDB requires neither the CUDA language nor NVCC. An isolated build with `CMAKE_DISABLE_FIND_PACKAGE_CUDAToolkit=TRUE` has compiled the complete graphics configuration and passed 330 CTests locally at aggregate `f2eae3e`.
 
 The current presets share the default `build` directory. Use a separate binary directory to retain different configurations side by side:
 
@@ -90,3 +90,26 @@ acceptance tool with `--require-peer`. Select destination/source ordinals with
 diagnostic invocation is `nvrhi_cuda_interop --require-peer --peer-only --adapter 0
 --peer-adapter 1`. This option prepares the external acceptance job; it does not
 establish peer-transfer success on the local single-CUDA-adapter machine.
+
+The pending Linux jobs can use the following commands from a clean recursive
+checkout of the committed checkpoint. Install the Linux compiler/CMake/Ninja,
+X11 development packages listed in the `linux` preset, Vulkan driver/validation
+layers and the pinned CUDA/OptiX toolchains first. Set `OPTIX_ROOT` to the SDK.
+The full graphics matrix includes window tests and needs a working display.
+These commands are prepared for the external host; they have not run locally.
+
+```sh
+cmake --preset slang-next-linux -B build/linux-full -DOPTIX_ROOT="$OPTIX_ROOT"
+cmake --build build/linux-full --config Release --parallel 4
+python3 tools/run-slang-acceptance.py --build build/linux-full --profile linux-full --require-clean --output build/acceptance/linux-full
+
+cmake --preset slang-next-linux-graphics -B build/linux-graphics -DCMAKE_DISABLE_FIND_PACKAGE_CUDAToolkit=TRUE
+cmake --build build/linux-graphics --config Release --parallel 4
+python3 tools/run-slang-acceptance.py --build build/linux-graphics --profile linux-graphics --require-clean --output build/acceptance/linux-graphics
+```
+
+For the required peer job, add `-DNVRHI_TEST_REQUIRE_CUDA_PEER=ON` and the actual
+adapter ordinals to the full configure command, then add `--require-peer` to its
+acceptance command. Run native Vulkan validation, CUDA memory checks and installed
+static/shared consumer jobs on that platform too. Archive the revision-stamped
+reports and diagnostics; do not replace an unavailable required route with a skip.
