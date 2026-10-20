@@ -1,4 +1,4 @@
-"""Stage and run Windows production samples with only runtime DLLs and offline shaders.
+"""Stage and run production samples with only runtime libraries and offline shaders.
 
 Uses existing CTest command/oracle definitions, but never runs the build-directory
 executables. Source assets remain available: this checks shader/compiler deployment,
@@ -17,7 +17,8 @@ import time
 
 
 def required_names(graphics_only):
-    apis = ["DX11", "DX12", "VULKAN"] + ([] if graphics_only else ["CUDA"])
+    apis = (["DX11", "DX12"] if sys.platform == "win32" else []) + ["VULKAN"]
+    apis += [] if graphics_only else ["CUDA"]
     names = {"slang_render_shader_specializations_VULKAN"}
     families = ("gvdb_render_file", "gvdb_render_kernel", "gvdb_sph_pool",
                 "gvdb_resample_head", "gvdb_print_lucy", "gvdb_point_cloud_compute",
@@ -55,8 +56,9 @@ def main():
     parser.add_argument("--require-clean", action="store_true")
     parser.add_argument("--dumpbin", type=Path, help="MSVC dumpbin; discovered with vswhere when omitted")
     args = parser.parse_args()
-    if sys.platform != "win32":
-        parser.error("this deployment check is Windows-specific; Linux is a separate host TODO")
+    if sys.platform != "win32" and not sys.platform.startswith("linux"):
+        parser.error("this deployment check supports Windows and Linux")
+    windows = sys.platform == "win32"
     build, output = args.build.resolve(), args.output.resolve()
     root = Path(__file__).resolve().parents[1]
     state = source_state(root)
@@ -71,7 +73,7 @@ def main():
     if missing:
         raise RuntimeError(f"Required sample coverage missing: {missing}")
     dumpbin = args.dumpbin
-    if dumpbin is None:
+    if windows and dumpbin is None:
         vswhere = Path(os.environ["ProgramFiles(x86)"]) / "Microsoft Visual Studio/Installer/vswhere.exe"
         found = subprocess.check_output([str(vswhere), "-latest", "-products", "*", "-find",
             "VC/Tools/MSVC/**/bin/Hostx64/x64/dumpbin.exe"], text=True).splitlines()
@@ -98,8 +100,25 @@ def main():
     for exe in executables:
         shutil.copy2(exe, package / exe.name)
     # Explicit runtime allowlist: never copy the compiler DLLs in build/bin.
-    shutil.copy2(build / "bin/nvrhi_core.dll", package / "nvrhi_core.dll")
-    shutil.copytree(build / "bin/D3D12", package / "D3D12")
+    if windows:
+        shutil.copy2(build / "bin/nvrhi_core.dll", package / "nvrhi_core.dll")
+        shutil.copytree(build / "bin/D3D12", package / "D3D12")
+    else:
+        # Resolve dependencies before staging. Copy project DSOs, while libc,
+        # graphics drivers and other system libraries remain host requirements.
+        pending = list(executables)
+        copied = set()
+        while pending:
+            binary = pending.pop()
+            dependencies = subprocess.check_output(["ldd", str(binary)], text=True)
+            if "not found" in dependencies:
+                raise RuntimeError(f"Unresolved dependencies for {binary}: {dependencies}")
+            for path in re.findall(r"=>\s+(/\S+)", dependencies):
+                dependency = Path(path).resolve()
+                if dependency.is_relative_to(build) and dependency not in copied:
+                    shutil.copy2(dependency, package / Path(path).name)
+                    copied.add(dependency)
+                    pending.append(dependency)
     # Copy only executable artifacts and legacy precompiled graphics blobs.
     for source in (build / "bin/shaders").rglob("*"):
         if source.is_file() and source.suffix.lower() in (".bin", ".nvsp"):
@@ -109,18 +128,42 @@ def main():
     imports = {}
     forbidden = re.compile(r"(?:slang|nvrtc|cudart|gpdevice|shadertool)", re.I)
     for binary in sorted(package.rglob("*")):
-        if binary.suffix.lower() not in (".exe", ".dll"):
+        if windows and binary.suffix.lower() not in (".exe", ".dll"):
             continue
-        result = subprocess.check_output([str(dumpbin), "/DEPENDENTS", str(binary)])
-        dependencies = sorted(set(re.findall(rb"[\w.+-]+\.dll", result, flags=re.I)))
+        if not windows and binary.parent != package:
+            continue
+        if not binary.is_file():
+            continue
+        if windows:
+            result = subprocess.check_output([str(dumpbin), "/DEPENDENTS", str(binary)])
+            dependencies = sorted(set(re.findall(rb"[\w.+-]+\.dll", result, flags=re.I)))
+        else:
+            result = subprocess.check_output(["readelf", "-d", str(binary)])
+            dependencies = re.findall(rb"\(NEEDED\).*?\[(.*?)\]", result)
+            # Remove source/build-tree loader paths. The staged directory is the
+            # only non-system runtime library path used below.
+            subprocess.run(["patchelf", "--remove-rpath", str(binary)], check=True)
         imports[str(binary.relative_to(package))] = [name.decode("ascii") for name in dependencies]
         if any(forbidden.search(name.decode("ascii")) for name in dependencies):
             raise RuntimeError(f"Forbidden production dependency in {binary}: {dependencies}")
     # Drop developer PATH, SDK roots, compiler overrides and working directories.
     env = {key: value for key, value in os.environ.items()
            if key.upper() in {"SYSTEMROOT", "WINDIR", "TEMP", "TMP", "USERPROFILE", "LOCALAPPDATA", "APPDATA"}}
-    env["PATH"] = str(Path(os.environ["SystemRoot"]) / "System32")
-    report = {"scope": "Windows isolated offline-shader execution; source assets remain available",
+    if windows:
+        env["PATH"] = str(Path(os.environ["SystemRoot"]) / "System32")
+    else:
+        env = {key: value for key, value in os.environ.items()
+               if key in {"HOME", "DISPLAY", "XAUTHORITY", "XDG_RUNTIME_DIR", "WAYLAND_DISPLAY", "TMPDIR"}}
+        env["PATH"] = "/usr/bin:/bin"
+        env["LD_LIBRARY_PATH"] = str(package)
+        for binary in package.iterdir():
+            if binary.is_file():
+                resolved = subprocess.check_output(["ldd", str(binary)], env=env, text=True)
+                if "not found" in resolved or any(str(build) in line and str(package) not in line
+                                                 for line in resolved.splitlines()):
+                    raise RuntimeError(f"Runtime loader isolation failed for {binary}: {resolved}")
+                (logs / f"{binary.name}.ldd.log").write_text(resolved, encoding="utf-8")
+    report = {"scope": f"{sys.platform} isolated offline-shader execution; source assets remain available",
               "sourceBuild": str(build), "graphicsOnly": args.graphics_only,
               "imports": imports, "environmentPath": env["PATH"], "tests": []}
     report.update(state)
