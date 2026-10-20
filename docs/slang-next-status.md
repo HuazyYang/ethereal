@@ -570,3 +570,31 @@ matrices **438/438 Windows** (242.89 s) and **330/330 graphics-only** (186.96 s)
 without skips. Reports are `build/acceptance/{windows,graphics}-topology-final`.
 These runs include both topology-edit and activity factories and the independent
 integer-link tests. Linux and supported real-peer jobs remain unverified.
+
+## Production GPU topology and mixed-RT disposition (2026-10-20)
+
+Samples `40174a9` integrates [GPU key discovery and topology publication](plans/2026-10-20-gvdb-point-topology-integration.md)
+into point-cloud reconstruction: checked signed support, bounded key batches,
+stable sort/scan/compaction, authoritative CPU allocation, GPU links and validated
+fetch before atlas allocation. Reusing radix scan workspaces reduces logical
+scratch; independent three-level/tail sorting and reconstruction CPU oracles pass.
+Actual adapter selection in the general compute test exposed an AMD Vulkan
+voxelization discrepancy, fixed by sharing the public exact-division geometry.
+
+Focused Windows **22/22**, graphics-only affected applications **30/30**, native
+compute/reconstruction **12/12**, full-asset CUDA memory **zero errors**, installed
+topology static/shared **2/2 each** pass. All seven point-cloud images are unchanged.
+Three-run process timing/CPU-memory comparisons include both the previous portable
+checkpoint and retained CUDA/OptiX. D3D12/Vulkan integration overhead and slower
+portable full-scene process times are explicitly recorded, independently of
+correctness and logical scan scratch.
+
+The [mixed-RT follow-up](plans/2026-10-20-gvdb-mixed-rt-reference.md) isolates
+empty-skip differences to zero-bias secondary self-intersections. Explicit matched
+0.01 bias passes twelve fresh backend/mode comparisons and cross-API limits.
+The original failing level-set image stays in the report; its finite-offset
+diagnostic has a committed reproduction script. Default controls are unchanged.
+Inventory becomes **52 owned-validated / 48 sample-validated / 0 foundation /
+0 partial / 0 pending**, with fixture-specific corrections and external gates.
+These counts do not authorize reference retirement or claim universal pixel parity.
+Final clean full matrices follow separately; Linux and real peers remain required.
