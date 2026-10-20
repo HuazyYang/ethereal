@@ -53,7 +53,8 @@ def main():
     if args.require_peer:
         required.add("cuda_required_peer")
     for api in apis:
-        required |= {f"gvdb_owned_modes_{api}", f"gvdb_owned_sections_{api}", f"gvdb_render_file_{api}"}
+        required |= {f"gvdb_owned_modes_{api}", f"gvdb_owned_sections_{api}", f"gvdb_render_file_{api}",
+                     f"gvdb_owned_layers_{api}", f"gvdb_render_layers_{api}"}
         required |= {f"gvdb_render_mode_{mode}_{api}" for mode in range(8)}
     missing = sorted(required - names)
     if missing:

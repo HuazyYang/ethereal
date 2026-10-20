@@ -515,3 +515,19 @@ Installed runtime consumers pass static **2/2**, shared **1/1**; rebuilt install
 GVDB ray consumers pass **2/2 each**. Runtime package/header tests exclude compiler
 dependencies. This is current local platform evidence, not full project acceptance:
 Linux, supported real peers and the broader integration/reference gates remain.
+
+## Mixed RT reference correction and ordered volume layers (2026-10-20)
+
+Samples `f215469` corrects mixed-RT hierarchy entry and unrounded level-set
+sampling. Three RT suites, both native RT graphics adapters and CUDA memory
+checking pass. The [reference investigation](plans/2026-10-20-gvdb-mixed-rt-reference.md)
+isolates the retained zero-gradient NaN defect; remaining empty-skip differences
+and broader visual acceptance stay open.
+
+Samples `a0129a2` adds [ordered retained-volume layers](plans/2026-10-20-gvdb-volume-layers.md)
+and adopts them in render-to-file. Windows focused tests pass **40/40**,
+graphics-only plus RT **32/32**, native graphics **6/6**, CUDA memory **zero errors**.
+All 32 single-volume images are unchanged; matched two-instance eight-mode
+captures pass the documented four-API limits. Exact integer composition keeps
+opaque alpha 255, correcting retained approximate CUDA alpha 254.
+Inventory is now **49/23/17/11/0**. The full matrices above predate these changes.

@@ -39,7 +39,7 @@ Slang 2026.10.2, CUDA12.9, OptiX9, NVIDIA RTX4050 Laptop and AMD Radeon780M grap
 - Leaf-marker workflow acceptance covers exact flags, dirty/finished/stale tickets,
   inactive/reactivated leaves and retained GPU snapshots through the existing API.
 
-Latest committed samples implementation: `f215469`. Runtime dependencies: NVRHI `2c06d77`,
+Latest committed samples implementation: `a0129a2`. Runtime dependencies: NVRHI `2c06d77`,
 Donut `c7ca1b2`, nested shader-tool `15b6ab0`. The aggregate gitlinks are authoritative.
 An external handoff checkpoint also committed intermediate work during the session;
 those commits were preserved without rewriting history.
@@ -75,8 +75,9 @@ matrix does not require a real CUDA peer pair; that external gate remains open.
 
 ## Next work and open gates
 
-1. Complete multi-volume composition adoption and broader legacy scene
-   comparisons. Shared sections and individual shading modes now have explicit
+1. Complete broader legacy scene comparisons. Ordered multi-volume composition
+   is now adopted by render-to-file, with matched two-instance captures.
+   Shared sections and individual shading modes now have explicit
    controls, analytic checks and matched explosion captures. Shared
    mixed DXR/Vulkan/OptiX rendering exists but is not complete legacy parity.
 2. Resolve remaining linking/GPU-key/algorithm integration roles and record broad
@@ -90,7 +91,7 @@ matrix does not require a real CUDA peer pair; that external gate remains open.
    gitlinks before declaring completion or retiring the retained reference path.
 
 The [kernel inventory](../ethereal-samples/docs/gvdb-cuda-entry-inventory.md) records
-**49 owned-validated / 20 sample-validated / 17 portable-foundation / 14 partial /
+**49 owned-validated / 23 sample-validated / 17 portable-foundation / 11 partial /
 0 pending** across 100 roles. These are not completion percentages. No reference
 retirement is authorized; keep the legacy sources/build path for comparison.
 Future ROCm/Metal/SYCL implementations remain outside the approved backend scope.
@@ -108,3 +109,11 @@ adapters and CUDA memory checking pass. The [mixed RT investigation](plans/2026-
 distinguishes the legacy zero-gradient NaN failure from the remaining empty-skip
 image difference. Those visual gates remain open; the full matrices above predate
 this focused shader correction.
+
+[Ordered volume layers](plans/2026-10-20-gvdb-volume-layers.md) now cover scene-order
+rendering, first/later background and Off behavior, per-mode alpha, GPU packing
+and diagnostics. Focused Windows 40/40, graphics-only plus RT 32/32, six native
+graphics runs and CUDA memory checks pass. All 32 single-volume images are
+unchanged; all eight translated two-explosion modes pass documented comparison
+limits on four APIs. Section/compositing roles are sample-validated. The strict
+runner now requires the new layer algorithm and production-application tests.
