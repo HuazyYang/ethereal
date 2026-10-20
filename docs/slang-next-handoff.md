@@ -39,7 +39,7 @@ Slang 2026.10.2, CUDA12.9, OptiX9, NVIDIA RTX4050 Laptop and AMD Radeon780M grap
 - Leaf-marker workflow acceptance covers exact flags, dirty/finished/stale tickets,
   inactive/reactivated leaves and retained GPU snapshots through the existing API.
 
-Latest committed samples implementation: `a579dce`. Runtime dependencies: NVRHI `2c06d77`,
+Latest committed samples implementation: `f215469`. Runtime dependencies: NVRHI `2c06d77`,
 Donut `c7ca1b2`, nested shader-tool `15b6ab0`. The aggregate gitlinks are authoritative.
 An external handoff checkpoint also committed intermediate work during the session;
 those commits were preserved without rewriting history.
@@ -101,3 +101,10 @@ three-run process timings and logical storage are separate from correctness.
 `tools/run-slang-acceptance.py` checks coverage and fails on skipped tests.
 The NVRHI required-peer mode now fails on missing/unsupported pairs; its local
 single-adapter negative check passes, while actual peer success remains unproved.
+
+Fresh mixed-RT comparisons found and corrected level-set sampling phase and
+hierarchy-entry bias. Expanded three-backend tests, both native RT graphics
+adapters and CUDA memory checking pass. The [mixed RT investigation](plans/2026-10-20-gvdb-mixed-rt-reference.md)
+distinguishes the legacy zero-gradient NaN failure from the remaining empty-skip
+image difference. Those visual gates remain open; the full matrices above predate
+this focused shader correction.
