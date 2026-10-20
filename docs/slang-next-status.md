@@ -451,3 +451,16 @@ velocity coordinate planes and exact actual-GPU extrema. Four-API/ABI tests pass
 shared consumers **2/2 each**, native adapters and CUDA memory checks pass.
 Inventory is **47/14/19/20/0**. Leaf markers, rendering/export/consumer and broader
 platform/visual/performance acceptance remain open; no source retirement.
+
+## Public leaf-marker acceptance (2026-10-20)
+
+Samples `52f5e7d` validates the existing host `setActive`/`editNode`, topology finish
+and explicit publication workflow. The [execution record](plans/2026-10-20-gvdb-leaf-markers.md)
+covers exact flags, dirty/finished/stale-ticket transitions, inactive/reactivated
+leaves, empty topology and retained GPU node/channel bytes. Public API acceptance
+passes **5/5**, related regressions **11/11**, graphics-only **4/4**, and rebuilt
+installed static/shared consumers **3/3 each**. Both native graphics adapters pass
+all three APIs; CUDA memory checking reports zero errors. No runtime or ABI change
+was needed. Inventory is **48/14/18/20/0**. This is focused acceptance, not a new
+full matrix. Rendering/export/consumer, incremental key/link integration and broad
+platform/visual/performance gates remain open; no reference retirement.
