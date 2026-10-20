@@ -48,8 +48,11 @@ those commits were preserved without rewriting history.
 
 The [status record](slang-next-status.md) and linked execution plans distinguish
 historical full matrices from later focused validation. Latest completed full
-matrices, at the subcell checkpoint, were **365/365 Windows** and **274/274
-graphics-only**, without skips. Subsequent additions passed:
+matrices at aggregate `7dbb6e1` are **425/425 Windows** (259.02 seconds) and
+**320/320 graphics-only** (200.68 seconds), without CTest skips. Both used clean
+sources at committed parent gitlinks. Installed NVRHI consumers pass static 2/2
+and shared 1/1; installed GVDB ray consumers pass static/shared 2/2 each. Focused
+slice history:
 
 | Slice | Affected Windows tests | Graphics-only | Installed static/shared |
 | --- | ---: | ---: | --- |
@@ -66,7 +69,9 @@ and CUDA Compute Sanitizer with zero errors. Logs are local build artifacts unde
 `build/m5-public-subcells`, `build/m5-grid-query`, `build/m5-point-insertion` and
 `build/m5-point-split` and `build/m5-leaf-markers`; execution summaries and
 reproducible tests are committed.
-The later slices have not been represented as a new full-matrix run.
+The latest full runs include all slices above. Machine-readable reports and logs
+are under `build/acceptance/windows` and `build/acceptance/graphics`. The local
+matrix does not require a real CUDA peer pair; that external gate remains open.
 
 ## Next work and open gates
 

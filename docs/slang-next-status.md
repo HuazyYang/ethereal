@@ -503,3 +503,15 @@ interop still passes and the required-peer invocation correctly fails on this
 single-CUDA-adapter host. The aggregate acceptance runner checks platform coverage,
 records committed revisions and rejects CTest skips. These controls prepare the
 external jobs; they do not constitute Linux or real-peer success.
+
+## Committed aggregate regression matrix (2026-10-20)
+
+Aggregate `7dbb6e1`, samples `a579dce`, NVRHI `2c06d77`, Donut `c7ca1b2` and
+shader-tool `15b6ab0` rebuild successfully from clean committed gitlinks. The
+strict serial runner passes **425/425 Windows** in **259.02 seconds** and
+**320/320 graphics-only** in **200.68 seconds**, with no CTest skips or missing
+results. Reports are `build/acceptance/{windows,graphics}/acceptance.json`.
+Installed runtime consumers pass static **2/2**, shared **1/1**; rebuilt installed
+GVDB ray consumers pass **2/2 each**. Runtime package/header tests exclude compiler
+dependencies. This is current local platform evidence, not full project acceptance:
+Linux, supported real peers and the broader integration/reference gates remain.
