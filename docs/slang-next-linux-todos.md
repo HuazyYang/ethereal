@@ -1,23 +1,27 @@
 # Slang-next Linux developer handoff
 
-Status: **deferred to a Linux-host developer by the user on 2026-10-20**. These
-unchecked jobs remain required for final project acceptance. They do not block
-continued Windows implementation, packaging checks or documentation. Do not mark
-them passed from Windows results or retire the retained reference prematurely.
+Status: **L0–L4 completed on Linux on 2026-10-20**. See the
+[revision-stamped results and evidence index](slang-next-linux-results.md).
+Full Vulkan/CUDA/OptiX passes 248/248; Vulkan-only passes 150/150. H1 remains
+unassigned hardware work, and the shared OptiX fix requires the W1 Windows
+regression listed in the results. Final acceptance and reference retirement
+remain pending those jobs.
 
 ## Inputs and return contract
 
 Use the aggregate `slang-next` checkout containing this document and its exact
-recursive gitlinks. The last fully validated implementation is aggregate
+recursive gitlinks. The original Windows-validated implementation was aggregate
 `f2eae3e`, samples `40174a9`, NVRHI `2c06d77`, Donut `c7ca1b2`, shader-tool
-`15b6ab0`; subsequent aggregate commits add handoff/validation tooling. Ensure
+`15b6ab0`; subsequent aggregate commits add handoff/validation tooling and Linux fixes. The
+returned Linux implementation is aggregate `9230478`, NVRHI `7c6a894`, samples
+`d8acf1e`, with unchanged Donut/shader-tool gitlinks. Ensure
 these commits have been transferred to the Linux checkout before starting;
 following moving submodule branch tips is not equivalent.
 
-- [ ] L0: Record `git rev-parse HEAD`, `git submodule status --recursive`, clean
+- [x] L0: Record `git rev-parse HEAD`, `git submodule status --recursive`, clean
   source status, OS/kernel, compiler/CMake/Ninja versions, Slang compiler identity,
   CUDA/OptiX versions, Vulkan driver/layers and GPU UUIDs/ordinals.
-- [ ] Return a commit containing fixes, updated parent gitlinks and a concise
+- [x] Return a commit containing fixes, updated parent gitlinks and a concise
   result table. Preserve full logs, JUnit and `acceptance.json` outside source.
   Report failed, skipped and unavailable jobs explicitly. Do not import Windows
   test counts as expected Linux counts; required backend coverage must be present.
@@ -36,10 +40,10 @@ cmake --build build/linux-full --config Release --parallel 4
 python3 tools/run-slang-acceptance.py --build build/linux-full --profile linux-full --require-clean --output build/acceptance/linux-full
 ```
 
-- [ ] All tests succeed without unexpected skips. In particular, retain evidence
+- [x] All tests succeed without unexpected skips. In particular, retain evidence
   for CUDA compute/OptiX, native interop, Vulkan external-memory/semaphore interop,
   public ownership/topology, GPU point discovery, rendering and sample windows.
-- [ ] Investigate Linux FD ownership, dedicated allocations, offsets and repeated
+- [x] Investigate Linux FD ownership, dedicated allocations, offsets and repeated
   semaphore acquisition/release if interop fails. Do not substitute CPU staging.
 
 ## L2: Vulkan-only and tests-disabled production
@@ -55,8 +59,8 @@ build/linux-production/bin/point-cloud -vk --headless --samples 2 --verify-volum
 build/linux-production/bin/interactive-optix -vk --self-test
 ```
 
-- [ ] Graphics-only matrix passes without CUDA discovery.
-- [ ] Production runs pass and match the equivalent Vulkan configuration within
+- [x] Graphics-only matrix passes without CUDA discovery.
+- [x] Production runs pass and match the equivalent Vulkan configuration within
   documented fixture tolerances. Compare like configurations; Windows found
   small differences between graphics-only and CUDA-enabled builds.
 
@@ -75,20 +79,20 @@ compute-sanitizer --tool memcheck --error-exitcode 99 build/linux-full/bin/gvdb_
 compute-sanitizer --tool memcheck --error-exitcode 99 build/linux-full/bin/gvdb_point_cloud_reconstruction_tests -cuda --asset ethereal-samples/src/gvdb_samples/samples/assets
 ```
 
-- [ ] Native validation has no errors; review warnings rather than accepting only
+- [x] Native validation has no errors; review warnings rather than accepting only
   process exit codes. CUDA memory checking reports zero errors. Include public
   owner/generation lifetime and atlas remap checks in the diagnostic run.
 
 ## L4: Installed SDK and compiler-free deployment
 
-- [ ] Build/install compiler-independent ShaderTool artifacts with
+- [x] Build/install compiler-independent ShaderTool artifacts with
   `SHADERTOOL_BUILD_COMPILER=OFF` and `SHADERTOOL_BUILD_TESTS=OFF`.
-- [ ] Build/install standalone NVRHI static and shared SDKs against that prefix,
+- [x] Build/install standalone NVRHI static and shared SDKs against that prefix,
   with `NVRHI_INSTALL=ON`, `NVRHI_INSTALL_EXPORTS=ON`, `NVRHI_WITH_SLANG=ON`,
   `NVRHI_WITH_CUDA=ON`, `NVRHI_WITH_OPTIX=ON`, `NVRHI_WITH_VULKAN=ON` and
   `OPTIX_ROOT`. Build and test `ethereal-nvrhi/tests/installed-consumer` against
   each installed SDK, with CUDA toolkit discovery disabled in the consumer.
-- [ ] Build/install both GVDB linkage variants using the committed portable
+- [x] Build/install both GVDB linkage variants using the committed portable
   wrapper below. Use installed NVRHI rather than aggregate build-tree targets.
   Repeat the commands with `kind=shared; shared=ON`.
 
@@ -106,23 +110,23 @@ cmake --build "build/gvdb-topology-consumer-$kind" --parallel 4
 ctest --test-dir "build/gvdb-topology-consumer-$kind" --output-on-failure --no-tests=error
 ```
 
-- [ ] Also configure `tests/ray-query-api-consumer` under the same GVDB source
+- [x] Also configure `tests/ray-query-api-consumer` under the same GVDB source
   directory, with `GVDB_RAY_QUERY_CONSUMER_CUDA_TEST=ON`, the same owner artifact,
   and `GVDB_RAY_QUERY_TEST_ARTIFACT` pointing to
   `build/linux-full/bin/shaders/gvdb_ray_query/ptx/GVDBRayRecords_queryRayRecords.bin`.
   Both consumers must run their CUDA case as well as their ABI case.
-- [ ] Stage actual application binaries, runtime `.so` dependencies and offline
+- [x] Stage actual application binaries, runtime `.so` dependencies and offline
   shaders into a separate runtime directory. Check RPATH/loader resolution and
   run compute, RT and production GVDB fixtures without Slang/NVRTC libraries or
   SDK search paths. CUDA driver PTX JIT and OptiX remain valid runtime requirements.
-  The Windows-only `tools/run-slang-isolated-runtime.py` documents the analogous
-  deployment check; port its isolation to Linux rather than claiming it ran there.
+  `tools/run-slang-isolated-runtime.py` now supports Linux ELF staging, RPATH
+  removal and loader auditing; full 31/31 and graphics-only 17/17 routes pass.
 
 ## H1: Supported real CUDA peers (separate hardware prerequisite)
 
-The user deferred Linux work; the peer requirement is still required and has not
-been waived. The Linux developer should run this if their host has a supported
-pair. Otherwise return it as **unassigned hardware work**, not a Linux pass.
+Linux work is complete, but the peer requirement has not been waived. This host
+has one CUDA adapter, and the required-peer invocation fails explicitly. H1 is
+**unassigned hardware work**, not a Linux pass. Run this on a supported pair.
 
 ```sh
 cmake --preset slang-next-linux -B build/linux-peer -DOPTIX_ROOT="$OPTIX_ROOT" -DNVRHI_TEST_REQUIRE_CUDA_PEER=ON -DNVRHI_TEST_CUDA_LOCAL_ADAPTER=0 -DNVRHI_TEST_CUDA_PEER_ADAPTER=1
@@ -138,9 +142,11 @@ python3 tools/run-slang-acceptance.py --build build/linux-peer --profile linux-f
 
 ## Final reconciliation
 
-- [ ] Record each job's tested aggregate commit and recursive gitlinks, result,
-  hardware and artifact paths. Rerun affected Windows jobs if Linux fixes change
-  shared runtime, shader, ABI or ownership behavior.
-- [ ] Update `docs/slang-next-status.md` and `docs/slang-next-handoff.md` once the
+- [x] Record each job's tested aggregate commit and recursive gitlinks, result,
+  hardware and artifact paths in `slang-next-linux-results.md`.
+- [ ] W1: rerun affected Windows OptiX/resource-array/scene-RT and sanitizer jobs,
+  then a clean strict Windows matrix. The internal empty-miss record fix changes
+  shared CUDA/OptiX backend behavior; this Linux host cannot certify Windows.
+- [x] Update `docs/slang-next-status.md` and `docs/slang-next-handoff.md` once the
   returned evidence is reviewed. Final acceptance and reference retirement stay
-  pending until both Linux and supported-peer requirements are satisfied.
+  pending until H1, W1 and final reconciliation are satisfied.

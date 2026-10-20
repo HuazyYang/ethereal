@@ -87,36 +87,41 @@ regresses D3D12/Vulkan process time, and portable full-scene reconstruction/rend
 processes remain slower than retained CUDA/OptiX on this fixture. Reused logical
 scan scratch is smaller; CPU peak working set is not GPU peak memory.
 
-## Deferred external acceptance and current local work
+## Linux return and remaining external acceptance
 
-1. Linux developer: execute [L0-L4](slang-next-linux-todos.md), covering the full
-   and graphics-only matrices, native validation, sanitizer, installed consumers
-   and isolated runtime deployment. Return fixes and revision-stamped evidence.
-2. On a supported CUDA pair, configure `NVRHI_TEST_REQUIRE_CUDA_PEER=ON`, select
-   actual local/peer ordinals and run the strict runner with `--require-peer`.
-   Missing/unsupported hardware must fail; a local negative test is not acceptance.
-3. Only after the required external jobs pass, reconcile the final acceptance
-   record and reference disposition. Keep `ETHEREAL_BUILD_GVDB_LEGACY` and retained
-   sources available until then. Future ROCm/Metal/SYCL backends remain out of scope.
+Linux L0–L4 have been executed and reviewed on the Linux host. See the
+[full return and evidence index](slang-next-linux-results.md) and
+[updated checklist](slang-next-linux-todos.md). Implementation aggregate
+`9230478` pins NVRHI `7c6a894`, samples `d8acf1e`, Donut `c7ca1b2` and nested
+shader-tool `15b6ab0`.
 
-Linux availability is no longer a request for this session: that work is deferred
-to the other host/developer. Local production dependency and isolated runtime
-checks now pass at aggregate `bb0eb36`: **61/61 full-runtime** routes and **45/45
-graphics-only** routes, with clean sources unchanged throughout each run.
-The committed `tools/gvdb-acceptance-package` replaces absolute
-workstation paths in the topology/ray package setup. The Windows deployment tool
-`tools/run-slang-isolated-runtime.py` copies only selected executables, the runtime
-DLLs and offline shader artifacts, removes developer SDK paths, and runs the
-production fixtures from that separate directory. Source assets remain available;
+The full Linux matrix passes **248/248**, graphics-only **150/150**, with no skips.
+Tests-disabled production passes and exactly matches the equivalent Vulkan
+capture. Native validation and CUDA memory checks are clean. Static/shared
+installed SDKs, actual CUDA topology/ray consumers, and compiler-free deployment
+pass; isolated runtime routes are **31/31 full** and **17/17 graphics-only**.
+The result document distinguishes final implementation evidence from earlier
+graphics/production runs and preserves investigated failures.
+
+The remaining work is:
+
+1. **H1: supported CUDA peers.** Transfer these gitlinks to a supported two-GPU
+   host and execute the strict required-peer job. This host has only one CUDA GPU;
+   its explicit required-peer failure is not acceptance.
+2. **W1: affected Windows regression.** The Linux run exposed an OptiX driver
+   rejection of a raygen-only table without a miss record. The shared backend now
+   supplies a private no-op miss record. Rebuild Windows and rerun OptiX, cached/
+   uncached resource-array and scene-RT tests plus sanitizer, then return a clean
+   strict full matrix. Earlier Windows 438/438 does not certify the new fix.
+3. Reconcile final acceptance and reference disposition after H1 and W1 pass.
+   Keep `ETHEREAL_BUILD_GVDB_LEGACY` and retained sources available until then.
+
+The portable `tools/gvdb-acceptance-package` continues to use installed NVRHI,
+without workstation-specific paths. `tools/run-slang-isolated-runtime.py` now
+supports Windows DLL and Linux ELF deployment checks, including import auditing,
+Linux RPATH removal and runtime loader resolution. Source assets remain available;
 this is shader/compiler deployment validation, not asset redistribution.
-
-The 15 selected production targets' transitive build commands contain no
-GPDevice, Thrust, cudart, NVCC or `.cu/.cuh` compilation. Audited PE imports contain
-no Slang/NVRTC/cudart/GPDevice/compiler-library dependency. The portable topology/
-ray package wrapper passes static/shared CPU/ABI **5/5 each**, and its independently
-installed topology and ray consumers each pass **2/2 per linkage variant**, with
-CUDA/compiler SDK discovery disabled. Logs and hashed runtime manifests are in
-`build/acceptance/isolated-{full,graphics}-final` and
-`build/acceptance/portable-package`. Runtime gitlinks remain unchanged.
-Next integration work is to consume the Linux developer's L0-L4 results and the
-separate H1 peer evidence; final global acceptance remains pending those jobs.
+The previous Windows isolated-runtime **61/61 full** and **45/45 graphics-only**
+runs at `bb0eb36` remain historical evidence under
+`build/acceptance/isolated-{full,graphics}-final`; Linux evidence is under the
+paths listed in the return. Future ROCm/Metal/SYCL backends remain out of scope.

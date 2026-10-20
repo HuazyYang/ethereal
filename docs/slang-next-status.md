@@ -650,3 +650,30 @@ CUDA/compiler package discovery disabled. Evidence is under
 `build/acceptance/isolated-{full,graphics}-final` and
 `build/acceptance/portable-package`. All local continuation checks pass; Linux L0-L4
 and real-peer H1 remain deferred external acceptance work. References stay retained.
+
+
+## Linux acceptance return (2026-10-20)
+
+The deferred L0–L4 work is now complete on Ubuntu 24.04.4 / RTX 5070 Ti, driver
+595.99.02, Slang 2026.10.2, CUDA 12.9 and OptiX 9.0. Final implementation
+aggregate `9230478` records NVRHI `7c6a894`, samples `d8acf1e`, unchanged Donut
+`c7ca1b2` and shader-tool `15b6ab0`. Full Linux passes **248/248** with no skips.
+Vulkan-only passes **150/150**, tests-disabled production matches the equivalent
+Vulkan PNG exactly, and isolated deployment passes **31/31 full** and **17/17
+graphics-only** routes. Four native validation runs are clean; three requested
+CUDA memchecks and the raygen-only regression report zero errors. Installed
+static/shared NVRHI consumers pass **2/2 each**, GVDB wrappers **5/5 each**, and
+installed topology/ray consumers **2/2 each per linkage**, with toolkit discovery
+disabled. The [Linux return](slang-next-linux-results.md) records per-job revisions,
+logs, JUnit, JSON reports, earlier failures and reproduction details.
+
+Fixes cover Linux static Vulkan linkage, installed SDK dependency discovery and
+loader paths, sample logging, ELF runtime isolation, and an OptiX driver rejection
+of an empty miss shader table. The latter now receives an internal no-op record;
+the regression covers both cached and uncached raygen-only tables. Public ABI and
+entry counts are unchanged.
+
+**Final acceptance remains pending:** H1 needs a supported real CUDA peer pair
+(this host has one CUDA GPU), and W1 must rerun affected Windows tests after the
+shared OptiX change. Earlier Windows results predate that fix. Retained references
+and legacy build support remain available.
