@@ -1,8 +1,11 @@
 # Slang-next handoff
 
 Updated 2026-10-20. Windows implementation and fixture validation have advanced;
-**the complete plan is not accepted yet**. Linux Vulkan/CUDA and a supported real
-CUDA peer pair still require suitable execution hosts. Retained references remain.
+**the complete plan is not accepted yet**. The user deferred Linux Vulkan/CUDA
+validation to another developer on 2026-10-20. The actionable
+[Linux host TODOs](slang-next-linux-todos.md) are staged separately so local work
+can continue. A supported real CUDA peer pair is a separate required hardware
+job; it has not been waived. Retained references remain.
 
 ## Checkout and build
 
@@ -84,11 +87,11 @@ regresses D3D12/Vulkan process time, and portable full-scene reconstruction/rend
 processes remain slower than retained CUDA/OptiX on this fixture. Reused logical
 scan scratch is smaller; CPU peak working set is not GPU peak memory.
 
-## Remaining acceptance work
+## Deferred external acceptance and current local work
 
-1. Run `slang-next-linux` and `slang-next-linux-graphics` on an actual Linux
-   Vulkan/CUDA host, including native validation, sanitizer and installed consumers.
-   Use the strict runner's matching `linux-full` / `linux-graphics` profiles.
+1. Linux developer: execute [L0-L4](slang-next-linux-todos.md), covering the full
+   and graphics-only matrices, native validation, sanitizer, installed consumers
+   and isolated runtime deployment. Return fixes and revision-stamped evidence.
 2. On a supported CUDA pair, configure `NVRHI_TEST_REQUIRE_CUDA_PEER=ON`, select
    actual local/peer ordinals and run the strict runner with `--require-peer`.
    Missing/unsupported hardware must fail; a local negative test is not acceptance.
@@ -96,5 +99,11 @@ scan scratch is smaller; CPU peak working set is not GPU peak memory.
    record and reference disposition. Keep `ETHEREAL_BUILD_GVDB_LEGACY` and retained
    sources available until then. Future ROCm/Metal/SYCL backends remain out of scope.
 
-No Linux execution host or supported CUDA peer pair has been provided in this
-session. Local Windows results cannot substitute for those explicit plan gates.
+Linux availability is no longer a request for this session: that work is deferred
+to the other host/developer. Continue local production dependency and isolated
+runtime checks. The committed `tools/gvdb-acceptance-package` replaces absolute
+workstation paths in the topology/ray package setup. The Windows deployment tool
+`tools/run-slang-isolated-runtime.py` copies only selected executables, the runtime
+DLLs and offline shader artifacts, removes developer SDK paths, and runs the
+production fixtures from that separate directory. Source assets remain available;
+this is shader/compiler deployment validation, not asset redistribution.

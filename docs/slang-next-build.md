@@ -78,6 +78,10 @@ The installed static NVRHI package resolves its link dependencies. A shared NVRH
 
 Linux presets (`slang-next-linux` and `slang-next-linux-graphics`) have not been executed on this workstation. Linux Vulkan/CUDA interop and actual multi-GPU transfers remain required acceptance runs. Single-GPU rejection tests do not establish peer-transfer success.
 
+The user deferred Linux execution to another developer. Use the
+[Linux TODO handoff](slang-next-linux-todos.md) for the assigned jobs, package
+commands and evidence to return; the peer job remains a separate hardware gate.
+
 Run the serial matrix with `python tools/run-slang-acceptance.py --build build
 --profile windows-full --require-clean --output build/acceptance/windows`. Use
 `windows-graphics`, `linux-full` or `linux-graphics` for the matching configuration.
@@ -113,3 +117,22 @@ adapter ordinals to the full configure command, then add `--require-peer` to its
 acceptance command. Run native Vulkan validation, CUDA memory checks and installed
 static/shared consumer jobs on that platform too. Archive the revision-stamped
 reports and diagnostics; do not replace an unavailable required route with a skip.
+
+## Isolated Windows production runtime
+
+Use a fresh output directory and run serially with other GPU work:
+
+```powershell
+python tools/run-slang-isolated-runtime.py --build build --require-clean --output build/acceptance/isolated-full
+python tools/run-slang-isolated-runtime.py --build build/graphics-only --graphics-only --require-clean --output build/acceptance/isolated-graphics
+```
+
+This requires Ninja and MSVC `dumpbin` (discovered through `vswhere`). It checks
+the selected production targets' transitive compile/link commands, inspects PE
+imports, and copies only the applications, `nvrhi_core.dll`, D3D12 runtime and
+compiled shader blobs. No compiler executable, Slang/NVRTC/cudart DLL, source
+shader or developer SDK path is copied into the runtime directory. Every fixture
+runs from the copy with a system-only `PATH`; errors and developer skip codes fail
+the job. The report records source revisions, file hashes, imports and results.
+Reference asset paths remain available and are not an asset-packaging claim.
+Drivers, including CUDA PTX JIT and OptiX, remain runtime requirements.
