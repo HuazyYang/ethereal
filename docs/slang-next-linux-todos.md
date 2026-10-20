@@ -3,9 +3,9 @@
 Status: **L0–L4 completed on Linux on 2026-10-20**. See the
 [revision-stamped results and evidence index](slang-next-linux-results.md).
 Full Vulkan/CUDA/OptiX passes 248/248; Vulkan-only passes 150/150. H1 remains
-unassigned hardware work, and the shared OptiX fix requires the W1 Windows
-regression listed in the results. Final acceptance and reference retirement
-remain pending those jobs.
+unassigned hardware work. The [W1 Windows return](slang-next-windows-return.md)
+now passes at the returned implementation gitlinks. Final acceptance and reference
+retirement remain pending H1 and final reconciliation.
 
 ## Inputs and return contract
 
@@ -144,9 +144,9 @@ python3 tools/run-slang-acceptance.py --build build/linux-peer --profile linux-f
 
 - [x] Record each job's tested aggregate commit and recursive gitlinks, result,
   hardware and artifact paths in `slang-next-linux-results.md`.
-- [ ] W1: rerun affected Windows OptiX/resource-array/scene-RT and sanitizer jobs,
-  then a clean strict Windows matrix. The internal empty-miss record fix changes
-  shared CUDA/OptiX backend behavior; this Linux host cannot certify Windows.
+- [x] W1: affected Windows OptiX/resource-array/scene-RT, six native checks and
+  five sanitizer jobs pass. Clean strict matrices pass 438/438 full and 330/330
+  graphics-only at `57531c1`; see [the Windows return](slang-next-windows-return.md).
 - [x] Update `docs/slang-next-status.md` and `docs/slang-next-handoff.md` once the
   returned evidence is reviewed. Final acceptance and reference retirement stay
-  pending until H1, W1 and final reconciliation are satisfied.
+  pending until H1 and final reconciliation are satisfied.

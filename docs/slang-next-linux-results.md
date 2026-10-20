@@ -1,9 +1,16 @@
 # Slang-next Linux acceptance return — 2026-10-20
 
-Linux L0–L4 are complete on the RTX 5070 Ti host. Final project acceptance and
-reference retirement remain pending **H1 (supported real CUDA peers)** and
-**W1 (Windows regression after the shared OptiX correction)**. Retained sources
+Linux L0–L4 are complete on the RTX 5070 Ti host. At the time of this Linux
+return, final acceptance and reference retirement still needed **H1 (supported
+real CUDA peers)** and **W1 (Windows regression after the shared OptiX correction)**.
+Retained sources
 and `ETHEREAL_BUILD_GVDB_LEGACY` remain available.
+
+**Subsequent Windows return:** W1 now passes at aggregate `57531c1` with the same
+implementation gitlinks: 438/438 full, 330/330 graphics-only, native validation
+and five CUDA memory checks. See [the Windows return](slang-next-windows-return.md).
+The W1 instructions below preserve the original Linux handoff; H1 and final
+reconciliation are the remaining gates.
 
 ## Revisions and host
 

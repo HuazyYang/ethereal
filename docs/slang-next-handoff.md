@@ -1,16 +1,19 @@
 # Slang-next handoff
 
-Updated 2026-10-20 after Linux acceptance. **Linux L0–L4 are complete; the complete
-plan is not accepted yet.** The next developer should run **W1**, the affected
-Windows regression after the shared OptiX fix, and **H1**, real CUDA transfers on
-a supported peer pair. Neither job has been waived. Retained references remain.
-The [Linux results](slang-next-linux-results.md) record the completed jobs and
-evidence; the [Linux checklist](slang-next-linux-todos.md) retains the H1 commands.
+Updated 2026-10-20 after the Windows return. **Linux L0-L4 and Windows W1 are
+complete; final plan acceptance still requires H1, real CUDA transfers on a
+supported peer pair.** Retained references remain available. The
+[Windows return](slang-next-windows-return.md) records the fresh Windows results
+and worktree relocation; the [Linux results](slang-next-linux-results.md) record
+L0-L4. Use the [peer checklist](slang-next-linux-todos.md#h1-supported-real-cuda-peers-separate-hardware-prerequisite)
+on the next suitable host.
 
 ## Checkout and build
 
-Work is on `slang-next` in the aggregate and its submodules. Use the committed
-parent gitlinks, including nested shader-tool. See [build instructions](slang-next-build.md)
+The Windows checkout is now `.worktrees/ethereal-slang-next` inside the main
+aggregate checkout (`D:/ps/repo/ethereal` on this host). Git worktree and nested
+submodule links have been repaired. Work is on aggregate branch `slang-next`.
+Use the committed parent gitlinks, including nested shader-tool. See [build instructions](slang-next-build.md)
 and the [approved plan](plans/2026-10-18-ethereal-nvrhi-slang-support.md).
 
 The returned implementation is aggregate `9230478`, NVRHI `7c6a894`, samples
@@ -21,13 +24,16 @@ Do not replace the recorded gitlinks with moving submodule branch tips. Confirm
 `git status --short` is empty and `git submodule status --recursive` has no `+`,
 `-`, or `U` entries before acceptance runs.
 
-For W1, rebuild on Windows and first run the affected cases, then the full runner:
+W1 passes at aggregate `57531c1` with the implementation gitlinks above. Fresh
+builds are `build/relocated` and `build/relocated-graphics`; historical CMake caches
+moved from the old location retain absolute paths and must not be reused.
+To reproduce the full Windows job (choose a fresh evidence directory):
 
 ```powershell
-./build.ps1 -Preset slang-next -ConfigureOnly
-cmake --build build --config Release --parallel 4
-ctest --test-dir build -C Release --parallel 1 --output-on-failure -R "cuda_slang_optix|cuda_optix|slang_resource_arrays|gvdb_scene_rt"
-python tools/run-slang-acceptance.py --build build --profile windows-full --require-clean --output build/acceptance/windows-linux-fixes
+./build.ps1 -Preset slang-next -ConfigureOnly -CMakeArgs '-Bbuild/relocated','-DOPTIX_ROOT=C:/Program Files/NVIDIA GPU Computing Toolkit/OptiX SDK 9.0.0'
+cmake --build build/relocated --config Release --parallel 4
+ctest --test-dir build/relocated -C Release --parallel 1 --output-on-failure -R "cuda_slang_optix|cuda_optix|slang_resource_arrays|gvdb_scene_rt"
+python tools/run-slang-acceptance.py --build build/relocated --profile windows-full --require-clean --output build/acceptance/windows-followup
 ```
 
 Run all GPU tests, native checks, captures and sanitizer processes serially.
@@ -72,6 +78,13 @@ That Windows checkpoint used NVRHI `2c06d77`, Donut `c7ca1b2`, shader-tool `15b6
 The returned Linux fixes advance NVRHI and samples to the gitlinks above.
 
 ## Validation
+
+The post-Linux Windows return at clean aggregate `57531c1` passes **438/438 full**
+(288.62 s), **330/330 graphics-only** (234.37 s), and isolated runtime **61/61 full**
+plus **45/45 graphics-only**, without skips. The affected filters pass **10/10 full**
+and **4/4 graphics-only**; six native checks pass and five CUDA memory checks report
+zero errors. See the [Windows evidence index](slang-next-windows-return.md).
+The following earlier checkpoints remain historical evidence.
 
 Last Windows full matrices before the Linux fixes: aggregate `f2eae3e`, samples `40174a9`,
 **438/438 Windows** (239.90 s), **330/330 graphics-only** (188.44 s), clean
@@ -121,27 +134,26 @@ The remaining work is:
 1. **H1: supported CUDA peers.** Transfer these gitlinks to a supported two-GPU
    host and execute the strict required-peer job. This host has only one CUDA GPU;
    its explicit required-peer failure is not acceptance.
-2. **W1: affected Windows regression.** The Linux run exposed an OptiX driver
-   rejection of a raygen-only table without a miss record. The shared backend now
-   supplies a private no-op miss record. Rebuild Windows and rerun OptiX, cached/
-   uncached resource-array and scene-RT tests plus sanitizer, then return a clean
-   strict full matrix. Earlier Windows 438/438 does not certify the new fix.
-3. Reconcile final acceptance and reference disposition after H1 and W1 pass.
-   Keep `ETHEREAL_BUILD_GVDB_LEGACY` and retained sources available until then.
+2. Reconcile final acceptance and reference disposition after H1 passes.
+   W1 is complete: the private no-op OptiX miss record passes the affected tests,
+   native checks, sanitizer and strict Windows matrices. Keep
+   `ETHEREAL_BUILD_GVDB_LEGACY` and retained sources available until H1 and final
+   reconciliation are complete.
 
 The portable `tools/gvdb-acceptance-package` continues to use installed NVRHI,
 without workstation-specific paths. `tools/run-slang-isolated-runtime.py` now
 supports Windows DLL and Linux ELF deployment checks, including import auditing,
 Linux RPATH removal and runtime loader resolution. Source assets remain available;
 this is shader/compiler deployment validation, not asset redistribution.
-The previous Windows isolated-runtime **61/61 full** and **45/45 graphics-only**
-runs at `bb0eb36` remain historical evidence under
-`build/acceptance/isolated-{full,graphics}-final`; Linux evidence is under the
-paths listed in the return. Future ROCm/Metal/SYCL backends remain out of scope.
+The current Windows isolated-runtime **61/61 full** and **45/45 graphics-only**
+runs at `57531c1` are under `build/acceptance/windows-relocated-isolated` and
+`build/acceptance/graphics-relocated-isolated`. The runs at `bb0eb36` remain
+historical evidence under `build/acceptance/isolated-{full,graphics}-final`;
+Linux evidence is under the paths listed in its return. Future ROCm/Metal/SYCL backends remain out of scope.
 
 Linux evidence is retained on host `fysics` at
 `/home/wyh/repo/ethereal/build/acceptance/`. These logs, JUnit reports, SDKs and staged
 runtime packages are ignored build artifacts and are not included in Git pushes.
 The committed result document indexes them. Preserve the original reports when
-collecting W1/H1 evidence and return the tested revisions, recursive gitlinks,
+collecting H1 or follow-up evidence and return the tested revisions, recursive gitlinks,
 hardware identities, failed/skipped jobs and new evidence paths.

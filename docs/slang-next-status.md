@@ -677,3 +677,20 @@ entry counts are unchanged.
 (this host has one CUDA GPU), and W1 must rerun affected Windows tests after the
 shared OptiX change. Earlier Windows results predate that fix. Retained references
 and legacy build support remain available.
+
+
+## Windows return and worktree relocation (2026-10-20)
+
+W1 is complete at clean aggregate `57531c1`, with NVRHI `7c6a894`, samples
+`d8acf1e`, Donut `c7ca1b2` and shader-tool `15b6ab0`. The worktree now lives at
+`.worktrees/ethereal-slang-next` inside the main checkout. Fresh full and
+graphics-only builds pass **438/438** and **330/330**, with no skips. The affected
+OptiX/resource-array/scene-RT filters pass **10/10 full** and **4/4 graphics-only**;
+six native checks pass, and five CUDA memory checks report zero errors. Isolated
+production runtime passes **61/61 full** and **45/45 graphics-only**, with unchanged
+sources and clean committed gitlinks. No runtime source changes were needed.
+
+The [Windows return](slang-next-windows-return.md) indexes logs and reproduction
+commands, including the preserved interrupted matrix and transient Windows build
+file-lock failures. H1 still requires a supported CUDA peer pair. Final acceptance
+and reference retirement remain pending H1 and final reconciliation.

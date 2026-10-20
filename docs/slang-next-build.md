@@ -1,6 +1,6 @@
 # Building and running Slang-next
 
-[Implementation status](slang-next-status.md) records verified behavior and outstanding acceptance gates. Work belongs in the `ethereal-slang-next` worktree, on the `slang-next` branches.
+[Implementation status](slang-next-status.md) records verified behavior and outstanding acceptance gates. Work belongs in the `.worktrees/ethereal-slang-next` worktree, on aggregate branch `slang-next` with its committed submodule gitlinks.
 
 ## Windows build
 
@@ -21,6 +21,15 @@ ctest --test-dir build/graphics-only -C Release --output-on-failure
 ```
 
 `build.ps1` initializes Visual Studio and sets console output to UTF-8. Localized MSVC diagnostic encoding must match CMake's detected `/showIncludes` prefix for Ninja to track header dependencies. Old trees created with mismatched encodings need a fresh configure and clean rebuild. `VSLANG=1033` alone does not work when English compiler resources are absent.
+
+On this Windows workstation, the relocated checkout uses fresh `build/relocated`
+and `build/relocated-graphics` directories. The moved historical caches still
+contain the old absolute path. Use `-ConfigureOnly -CMakeArgs '-Bbuild/relocated'`
+with the full preset, or `'-Bbuild/relocated-graphics'` with the graphics preset,
+and then explicitly build that directory. `build.ps1` build presets otherwise
+use the default `build` directory. Substitute the matching binary directory in
+the sample commands below. See [the Windows return](slang-next-windows-return.md)
+for the complete configure commands and current evidence.
 
 ## Portable samples
 
@@ -76,11 +85,12 @@ The installed static NVRHI package resolves its link dependencies. A shared NVRH
 
 `ETHEREAL_BUILD_GVDB_LEGACY=ON` enables old CUDA reference implementations and their dependencies. Set `ETHEREAL_BUILD_GVDB=OFF` when building legacy versions of migrated target names. The retained render-to-file, depth-map, point-fusion, point-cloud, interactive-optix and fluid-surface targets have been freshly rebuilt under `build/legacy-reference`; retain `ETHEREAL_WITH_SLANG=ON` when representative graphics samples are enabled.
 
-Linux presets (`slang-next-linux` and `slang-next-linux-graphics`) have not been executed on this workstation. Linux Vulkan/CUDA interop and actual multi-GPU transfers remain required acceptance runs. Single-GPU rejection tests do not establish peer-transfer success.
-
-The user deferred Linux execution to another developer. Use the
-[Linux TODO handoff](slang-next-linux-todos.md) for the assigned jobs, package
-commands and evidence to return; the peer job remains a separate hardware gate.
+Linux L0-L4 are complete on the external Linux host, including Vulkan/CUDA interop,
+installed SDKs and isolated deployment. The subsequent Windows W1 regression also
+passes. See the [Linux return](slang-next-linux-results.md) and
+[Windows return](slang-next-windows-return.md). Actual multi-GPU transfers remain
+required acceptance work; single-GPU rejection tests do not establish peer success.
+Use the [H1 checklist](slang-next-linux-todos.md) on a supported pair.
 
 Run the serial matrix with `python tools/run-slang-acceptance.py --build build
 --profile windows-full --require-clean --output build/acceptance/windows`. Use
@@ -95,12 +105,12 @@ diagnostic invocation is `nvrhi_cuda_interop --require-peer --peer-only --adapte
 --peer-adapter 1`. This option prepares the external acceptance job; it does not
 establish peer-transfer success on the local single-CUDA-adapter machine.
 
-The pending Linux jobs can use the following commands from a clean recursive
+To reproduce the completed Linux jobs, use the following commands from a clean recursive
 checkout of the committed checkpoint. Install the Linux compiler/CMake/Ninja,
 X11 development packages listed in the `linux` preset, Vulkan driver/validation
 layers and the pinned CUDA/OptiX toolchains first. Set `OPTIX_ROOT` to the SDK.
 The full graphics matrix includes window tests and needs a working display.
-These commands are prepared for the external host; they have not run locally.
+The Linux result document records the external host paths and tool overrides.
 
 ```sh
 cmake --preset slang-next-linux -B build/linux-full -DOPTIX_ROOT="$OPTIX_ROOT"
