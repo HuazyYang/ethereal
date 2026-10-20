@@ -39,7 +39,7 @@ Slang 2026.10.2, CUDA12.9, OptiX9, NVIDIA RTX4050 Laptop and AMD Radeon780M grap
 - Leaf-marker workflow acceptance covers exact flags, dirty/finished/stale tickets,
   inactive/reactivated leaves and retained GPU snapshots through the existing API.
 
-Latest committed samples implementation: `a0129a2`. Runtime dependencies: NVRHI `2c06d77`,
+Latest committed samples implementation: `e04a839`. Runtime dependencies: NVRHI `2c06d77`,
 Donut `c7ca1b2`, nested shader-tool `15b6ab0`. The aggregate gitlinks are authoritative.
 An external handoff checkpoint also committed intermediate work during the session;
 those commits were preserved without rewriting history.
@@ -48,8 +48,8 @@ those commits were preserved without rewriting history.
 
 The [status record](slang-next-status.md) and linked execution plans distinguish
 historical full matrices from later focused validation. Latest completed full
-matrices at aggregate `7dbb6e1` are **425/425 Windows** (259.02 seconds) and
-**320/320 graphics-only** (200.68 seconds), without CTest skips. Both used clean
+matrices at aggregate `5d22ac4` are **433/433 Windows** (239.42 seconds) and
+**326/326 graphics-only** (221.51 seconds), without CTest skips. Both used clean
 sources at committed parent gitlinks. Installed NVRHI consumers pass static 2/2
 and shared 1/1; installed GVDB ray consumers pass static/shared 2/2 each. Focused
 slice history:
@@ -70,7 +70,7 @@ and CUDA Compute Sanitizer with zero errors. Logs are local build artifacts unde
 `build/m5-point-split` and `build/m5-leaf-markers`; execution summaries and
 reproducible tests are committed.
 The latest full runs include all slices above. Machine-readable reports and logs
-are under `build/acceptance/windows` and `build/acceptance/graphics`. The local
+are under `build/acceptance/windows-layers-final` and `build/acceptance/graphics-layers-final`. The local
 matrix does not require a real CUDA peer pair; that external gate remains open.
 
 ## Next work and open gates
@@ -107,8 +107,8 @@ Fresh mixed-RT comparisons found and corrected level-set sampling phase and
 hierarchy-entry bias. Expanded three-backend tests, both native RT graphics
 adapters and CUDA memory checking pass. The [mixed RT investigation](plans/2026-10-20-gvdb-mixed-rt-reference.md)
 distinguishes the legacy zero-gradient NaN failure from the remaining empty-skip
-image difference. Those visual gates remain open; the full matrices above predate
-this focused shader correction.
+image difference. Those visual gates remain open. The latest matrices include
+this correction and the updated interactive application distance expectations.
 
 [Ordered volume layers](plans/2026-10-20-gvdb-volume-layers.md) now cover scene-order
 rendering, first/later background and Off behavior, per-mode alpha, GPU packing

@@ -531,3 +531,12 @@ All 32 single-volume images are unchanged; matched two-instance eight-mode
 captures pass the documented four-API limits. Exact integer composition keeps
 opaque alpha 255, correcting retained approximate CUDA alpha 254.
 Inventory is now **49/23/17/11/0**. The full matrices above predate these changes.
+
+Aggregate `5d22ac4` / samples `e04a839` subsequently passes clean committed
+matrices **433/433 Windows** (239.42 s) and **326/326 graphics-only** (221.51 s),
+without skips. Reports are `build/acceptance/{windows,graphics}-layers-final`.
+The first Windows attempt exposed three stale interactive analytic distances;
+those expectations now include the same unrounded hierarchy bias as the shared
+RT regression oracle. All 18 affected RT/application tests and both full reruns
+pass. No runtime/public API changed in this checkpoint, so the installed-package
+results at the earlier checkpoint still cover the runtime binaries.
