@@ -39,7 +39,7 @@ Slang 2026.10.2, CUDA12.9, OptiX9, NVIDIA RTX4050 Laptop and AMD Radeon780M grap
 - Leaf-marker workflow acceptance covers exact flags, dirty/finished/stale tickets,
   inactive/reactivated leaves and retained GPU snapshots through the existing API.
 
-Latest committed samples implementation: `1c5dfa2`. Runtime dependencies: NVRHI `c17545a`,
+Latest committed samples implementation: `a579dce`. Runtime dependencies: NVRHI `2c06d77`,
 Donut `c7ca1b2`, nested shader-tool `15b6ab0`. The aggregate gitlinks are authoritative.
 An external handoff checkpoint also committed intermediate work during the session;
 those commits were preserved without rewriting history.
@@ -59,6 +59,7 @@ graphics-only**, without skips. Subsequent additions passed:
 | Leaf markers | 16/16 | 4/4 | 3/3 each |
 | Public ray records and spray | 24/24 | 19/19 | 2/2 each |
 | Shared sections and compositing | 23/23 | 18/18 | No public ABI change |
+| Shared modes and matched scene | 23/23 plus 36/36 | 18/18 | No public ABI change |
 
 Each slice passed native D3D11/D3D12/Vulkan validation on both graphics adapters
 and CUDA Compute Sanitizer with zero errors. Logs are local build artifacts under
@@ -69,8 +70,9 @@ The later slices have not been represented as a new full-matrix run.
 
 ## Next work and open gates
 
-1. Complete remaining exported section/compositing and individual shading
-   contracts, consumer adoption and legacy control/visual comparisons. Shared
+1. Complete multi-volume composition adoption and broader legacy scene
+   comparisons. Shared sections and individual shading modes now have explicit
+   controls, analytic checks and matched explosion captures. Shared
    mixed DXR/Vulkan/OptiX rendering exists but is not complete legacy parity.
 2. Resolve remaining linking/GPU-key/algorithm integration roles and record broad
    timing/memory comparisons separately from correctness. Current point association
@@ -83,13 +85,14 @@ The later slices have not been represented as a new full-matrix run.
    gitlinks before declaring completion or retiring the retained reference path.
 
 The [kernel inventory](../ethereal-samples/docs/gvdb-cuda-entry-inventory.md) records
-**49 owned-validated / 14 sample-validated / 17 portable-foundation / 20 partial /
+**49 owned-validated / 20 sample-validated / 17 portable-foundation / 14 partial /
 0 pending** across 100 roles. These are not completion percentages. No reference
 retirement is authorized; keep the legacy sources/build path for comparison.
 Future ROCm/Metal/SYCL implementations remain outside the approved backend scope.
 
-Latest execution record: [sections/compositing](plans/2026-10-20-gvdb-sections.md).
-Spray uses the public ray query and shared section renderer. The corrected section
-threshold changes 32 fixture pixels; all four APIs agree. Exhaustive integer
-compositing differs from legacy CUDA by at most one byte. Remaining rendering
-contracts and broad consumer/platform/performance gates are active.
+Latest execution record: [shared rendering modes](plans/2026-10-20-gvdb-render-modes.md).
+Matched 1024x768 explosion captures pass documented tolerances on all four APIs;
+three-run process timings and logical storage are separate from correctness.
+`tools/run-slang-acceptance.py` checks coverage and fails on skipped tests.
+The NVRHI required-peer mode now fails on missing/unsupported pairs; its local
+single-adapter negative check passes, while actual peer success remains unproved.

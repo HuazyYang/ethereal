@@ -49,7 +49,10 @@ Backend options are `-dx11`, `-dx12`, `-vk`, and `-cuda`. `--adapter N` selects 
 
 The fluid viewer supports Space to pause, R to reset, arrow keys to orbit, and the mouse wheel to zoom. CUDA currently runs headless. Graphics modes draw directly from simulation buffers. Presets are regression (0), tower (1), wave pool (2), and dam break (3). The older scene/ImGui integration remains in the legacy implementation.
 
-`render-to-file` frames index-space volume bounds. Its camera and timing interval differ from the legacy renderer; analytic tests and cross-backend images establish correctness, not a direct speed comparison.
+`render-to-file` defaults to framing index-space bounds. `--shade 0..7 --reference-scene`
+selects the retained explosion camera, light, VBX transform and transfer table for
+matched reference comparisons. See the [render-mode record](plans/2026-10-20-gvdb-render-modes.md)
+for fixture tolerances and separate end-to-end timing/storage measurements.
 
 Resample uses keys 1/2/3 for topology/sparse/halo. 3d-print uses 1/2/3 for topology/shading/voxel size. Their shared viewer supports left-drag orbit, middle-drag pan, right-drag or wheel zoom, Shift-left-drag light rotation, V shading and I section inset. CUDA produces headless images. See the application READMEs for exact legacy behavior and presentation differences.
 
@@ -74,3 +77,16 @@ The installed static NVRHI package resolves its link dependencies. A shared NVRH
 `ETHEREAL_BUILD_GVDB_LEGACY=ON` enables old CUDA reference implementations and their dependencies. Set `ETHEREAL_BUILD_GVDB=OFF` when building legacy versions of migrated target names. The retained render-to-file, depth-map, point-fusion, point-cloud, interactive-optix and fluid-surface targets have been freshly rebuilt under `build/legacy-reference`; retain `ETHEREAL_WITH_SLANG=ON` when representative graphics samples are enabled.
 
 Linux presets (`slang-next-linux` and `slang-next-linux-graphics`) have not been executed on this workstation. Linux Vulkan/CUDA interop and actual multi-GPU transfers remain required acceptance runs. Single-GPU rejection tests do not establish peer-transfer success.
+
+Run the serial matrix with `python tools/run-slang-acceptance.py --build build
+--profile windows-full --require-clean --output build/acceptance/windows`. Use
+`windows-graphics`, `linux-full` or `linux-graphics` for the matching configuration.
+The runner checks coverage, records source revisions, and fails on skipped tests.
+
+On a supported CUDA pair configure `-DNVRHI_TEST_REQUIRE_CUDA_PEER=ON` and run the
+acceptance tool with `--require-peer`. Select destination/source ordinals with
+`NVRHI_TEST_CUDA_LOCAL_ADAPTER` and `NVRHI_TEST_CUDA_PEER_ADAPTER`; their defaults are
+0 and 1. The required test fails when the pair is absent or unsupported. A direct
+diagnostic invocation is `nvrhi_cuda_interop --require-peer --peer-only --adapter 0
+--peer-adapter 1`. This option prepares the external acceptance job; it does not
+establish peer-transfer success on the local single-CUDA-adapter machine.

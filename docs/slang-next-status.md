@@ -485,3 +485,21 @@ section captures agree; the corrected transfer threshold changes 32 pixels from
 the prior portable image. Exhaustive compositor comparison against retained CUDA
 differs by at most one byte. The section/compositing inventory remains partial
 pending broader scene/composition adoption; project acceptance is still open.
+
+## Shared rendering modes and hardware acceptance controls (2026-10-20)
+
+Samples `a579dce` supplies retained voxel/trilinear/depth-alias/deep/level-set/
+empty-skip modes and migrates spray. The [execution record](plans/2026-10-20-gvdb-render-modes.md)
+records **23/23** mode/spray tests, **18/18** graphics-only, **36/36** final
+mode/reference-scene tests, native adapters and zero CUDA memory errors.
+Matched explosion captures pass documented image tolerances across all four APIs;
+three-run process timings and logical topology/atlas storage are recorded separately.
+Inventory is **49/20/17/14/0**. Broad scene, composition, reconstruction performance
+and required external platform gates remain.
+
+NVRHI `2c06d77` adds explicit adapter selection and a required peer mode that fails
+instead of skipping when a supported real pair is unavailable. Local native
+interop still passes and the required-peer invocation correctly fails on this
+single-CUDA-adapter host. The aggregate acceptance runner checks platform coverage,
+records committed revisions and rejects CTest skips. These controls prepare the
+external jobs; they do not constitute Linux or real-peer success.
