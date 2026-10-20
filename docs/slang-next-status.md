@@ -552,3 +552,15 @@ graphics-only **11/11**, native **6/6**, zero CUDA memory errors, installed
 static/shared **2/2 each** pass. No existing vtable changed. Device-driven growth,
 orphan compaction and incremental key/link/delink orchestration remain; inventory
 counts stay **49/23/17/11/0**. Full matrices at the preceding checkpoint are historical.
+
+## Fixed-pool GPU topology activity (2026-10-20)
+
+Samples `3864daf` adds [public activity orchestration](plans/2026-10-20-gvdb-topology-activity.md)
+over the private edit/fetch transaction. Markers, leaf/internal delinking,
+child-list initialization and top-down relinking derive activity and restore the
+connected allocated graph. Independent CPU oracles cover empty, root-leaf,
+ten-level/tail, signed, all-inactive/reactivated trees. Focused compute/topology
+**9/9**, final native graphics **6/6**, graphics-only **11/11**, CUDA memory **zero
+errors**, rebuilt installed static/shared consumers **2/2 each** pass. Existing
+interfaces keep their ABI. GPU key-driven new-node allocation and compaction,
+broader visual/performance comparisons and external platform gates remain open.

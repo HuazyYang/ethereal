@@ -39,7 +39,7 @@ Slang 2026.10.2, CUDA12.9, OptiX9, NVIDIA RTX4050 Laptop and AMD Radeon780M grap
 - Leaf-marker workflow acceptance covers exact flags, dirty/finished/stale tickets,
   inactive/reactivated leaves and retained GPU snapshots through the existing API.
 
-Latest committed samples implementation: `7d3e3a0`. Runtime dependencies: NVRHI `2c06d77`,
+Latest committed samples implementation: `3864daf`. Runtime dependencies: NVRHI `2c06d77`,
 Donut `c7ca1b2`, nested shader-tool `15b6ab0`. The aggregate gitlinks are authoritative.
 An external handoff checkpoint also committed intermediate work during the session;
 those commits were preserved without rewriting history.
@@ -84,8 +84,9 @@ matrix does not require a real CUDA peer pair; that external gate remains open.
    timing/memory comparisons separately from correctness. Current point association
    deliberately uses checked host topology and Slang GPU attribute expansion.
    GPU-authored markers now pass through private fixed-pool editing, validated
-   fetch and transactional publication. Incremental key/link/delink orchestration
-   and device-driven allocation/compaction remain separate integration work.
+   fetch and transactional publication. Fixed-pool marker/delink/relink
+   orchestration is also validated. GPU key-driven new-node allocation and
+   compaction remain separate integration work.
 3. Run Linux Vulkan/CUDA and supported real multi-GPU peer acceptance on suitable
    hardware. This Windows machine cannot establish those completion gates.
 4. Rebuild/test the final aggregate matrix and installed packages from committed
@@ -126,3 +127,14 @@ completion pass four APIs. Focused owner/point tests 14/14, adoption/accumulatio
 8/8, graphics-only 11/11, native adapters 6/6 and CUDA memory checks pass;
 installed static/shared consumers pass 2/2 each. The 433/326 full matrices predate
 this API. Linking remains foundation until incremental orchestration is integrated.
+
+[Fixed-pool topology activity](plans/2026-10-20-gvdb-topology-activity.md) now
+orchestrates all five topology kernels through an additive installed factory.
+Inactive nodes are reconnected after bottom-up activity derivation. Exact CPU
+oracles cover ten levels, 257-leaf tail dispatches, repeated deactivate/reactivate
+cycles, signed geometry, empty/root-leaf cases, budgets and stale revisions.
+Focused topology/compute **9/9**, native graphics **6/6**, CUDA memory **zero
+errors**, graphics-only **11/11**, installed static/shared **2/2 each** pass.
+Distinct immutable constant ranges fix an observed NVIDIA D3D12 update failure;
+shader marker offsets avoid Vulkan storage-view alignment restrictions. GPU
+key-driven growth and compaction are still open. Full 433/326 matrices predate this.
