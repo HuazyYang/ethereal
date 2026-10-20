@@ -2,8 +2,7 @@
 
 Status: **L0–L4 completed on Linux on 2026-10-20**. See the
 [revision-stamped results and evidence index](slang-next-linux-results.md).
-Full Vulkan/CUDA/OptiX passes 248/248; Vulkan-only passes 150/150. H1 remains
-unassigned hardware work. The [W1 Windows return](slang-next-windows-return.md)
+Full Vulkan/CUDA/OptiX passes 248/248; Vulkan-only passes 150/150. H1 is assigned to a remote Linux developer with a supported two-GPU host. The [W1 Windows return](slang-next-windows-return.md)
 now passes at the returned implementation gitlinks. Final acceptance and reference
 retirement remain pending H1 and final reconciliation.
 
@@ -137,7 +136,7 @@ This confirms the missing prerequisite; it does not satisfy H1. The Linux
 checkout remains at `57531c1` with the same implementation gitlinks.
 Inventory, topology, revisions and the diagnostic are retained under
 `build/acceptance/peer-host-check-20261020-160820/` on the Windows workstation.
-The next required input is access to a host with a supported CUDA peer pair.
+The remote developer handoff is [here](slang-next-remote-linux-handoff.md). The next required input is the completed peer report from a supported CUDA pair.
 
 ```sh
 cmake --preset slang-next-linux -B build/linux-peer -DOPTIX_ROOT="$OPTIX_ROOT" -DNVRHI_TEST_REQUIRE_CUDA_PEER=ON -DNVRHI_TEST_CUDA_LOCAL_ADAPTER=0 -DNVRHI_TEST_CUDA_PEER_ADAPTER=1
@@ -145,11 +144,8 @@ cmake --build build/linux-peer --config Release --parallel 4
 python3 tools/run-slang-acceptance.py --build build/linux-peer --profile linux-full --require-peer --require-clean --output build/acceptance/linux-peer
 ```
 
-- [ ] Substitute the actual supported ordinals. Verify real native transfers and
-  retain pair capability/identity evidence. Run supported directional routes;
-  unsupported reverse directions must reject explicitly.
-- [ ] Missing or unsupported required hardware fails the job. Do not delete the
-  required test or count the Windows single-CUDA-adapter negative case as success.
+- [ ] Remote Linux developer: substitute the actual supported ordinals, verify real native transfers, and retain pair capability/identity evidence. Run supported directional routes; unsupported reverse directions must reject explicitly. Follow [the remote handoff](slang-next-remote-linux-handoff.md).
+- [ ] Missing or unsupported required hardware fails the job. Do not delete the required test or count the Windows single-CUDA-adapter negative case as success.
 
 ## Final reconciliation
 

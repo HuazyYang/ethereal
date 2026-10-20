@@ -5,8 +5,7 @@ complete; final plan acceptance still requires H1, real CUDA transfers on a
 supported peer pair.** Retained references remain available. The
 [Windows return](slang-next-windows-return.md) records the fresh Windows results
 and worktree relocation; the [Linux results](slang-next-linux-results.md) record
-L0-L4. Use the [peer checklist](slang-next-linux-todos.md#h1-supported-real-cuda-peers-separate-hardware-prerequisite)
-on the next suitable host.
+L0-L4. Use the [remote Linux H1 handoff](slang-next-remote-linux-handoff.md) and [peer checklist](slang-next-linux-todos.md#h1-supported-real-cuda-peers-separate-hardware-prerequisite) on a supported two-GPU host.
 
 ## Checkout and build
 
@@ -134,9 +133,8 @@ The remaining work is:
 1. **H1: supported CUDA peers.** Transfer these gitlinks to a supported two-GPU
    host and execute the strict required-peer job. This host has only one CUDA GPU;
    its explicit required-peer failure is not acceptance.
-   The configured SSH host `work-studio` (`fysics`) was rechecked and also still
-   has one CUDA GPU. A supported peer host and its access details are needed;
-   see the hardware check in the Linux checklist.
+   The configured SSH host `work-studio` (`fysics`) still has one CUDA GPU. H1 is
+   handed off to a remote Linux developer; use [the remote H1 handoff](slang-next-remote-linux-handoff.md).
 2. Reconcile final acceptance and reference disposition after H1 passes.
    W1 is complete: the private no-op OptiX miss record passes the affected tests,
    native checks, sanitizer and strict Windows matrices. Keep
