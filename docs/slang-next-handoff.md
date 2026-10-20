@@ -39,7 +39,7 @@ Slang 2026.10.2, CUDA12.9, OptiX9, NVIDIA RTX4050 Laptop and AMD Radeon780M grap
 - Leaf-marker workflow acceptance covers exact flags, dirty/finished/stale tickets,
   inactive/reactivated leaves and retained GPU snapshots through the existing API.
 
-Latest samples implementation: `52f5e7d`. Runtime dependencies: NVRHI `c17545a`,
+Latest committed samples implementation: `e38d0ef`. Runtime dependencies: NVRHI `c17545a`,
 Donut `c7ca1b2`, nested shader-tool `15b6ab0`. The aggregate gitlinks are authoritative.
 An external handoff checkpoint also committed intermediate work during the session;
 those commits were preserved without rewriting history.
@@ -57,6 +57,7 @@ graphics-only**, without skips. Subsequent additions passed:
 | Point insertion | 30/30 | 8/8 | 2/2 each |
 | Coordinate splitting | 25/25 | 4/4 | 2/2 each |
 | Leaf markers | 16/16 | 4/4 | 3/3 each |
+| Public ray records and spray | 24/24 | 19/19 | 2/2 each |
 
 Each slice passed native D3D11/D3D12/Vulkan validation on both graphics adapters
 and CUDA Compute Sanitizer with zero errors. Logs are local build artifacts under
@@ -67,7 +68,7 @@ The later slices have not been represented as a new full-matrix run.
 
 ## Next work and open gates
 
-1. Complete remaining exported ray/section/compositing and individual shading
+1. Complete remaining exported section/compositing and individual shading
    contracts, consumer adoption and legacy control/visual comparisons. Shared
    mixed DXR/Vulkan/OptiX rendering exists but is not complete legacy parity.
 2. Resolve remaining linking/GPU-key/algorithm integration roles and record broad
@@ -81,9 +82,11 @@ The later slices have not been represented as a new full-matrix run.
    gitlinks before declaring completion or retiring the retained reference path.
 
 The [kernel inventory](../ethereal-samples/docs/gvdb-cuda-entry-inventory.md) records
-**48 owned-validated / 14 sample-validated / 18 portable-foundation / 20 partial /
+**49 owned-validated / 14 sample-validated / 17 portable-foundation / 20 partial /
 0 pending** across 100 roles. These are not completion percentages. No reference
 retirement is authorized; keep the legacy sources/build path for comparison.
 Future ROCm/Metal/SYCL implementations remain outside the approved backend scope.
 
-Latest execution record: [leaf-marker acceptance](plans/2026-10-20-gvdb-leaf-markers.md).
+Latest execution record: [public ray records](plans/2026-10-20-gvdb-public-ray-query.md).
+Spray uses the public query; all twenty captures exactly match the previous owned
+implementation. Section/compositing implementation is the next active slice.

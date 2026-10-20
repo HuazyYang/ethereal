@@ -464,3 +464,13 @@ all three APIs; CUDA memory checking reports zero errors. No runtime or ABI chan
 was needed. Inventory is **48/14/18/20/0**. This is focused acceptance, not a new
 full matrix. Rendering/export/consumer, incremental key/link integration and broad
 platform/visual/performance gates remain open; no reference retirement.
+
+## Public ray records and spray adoption (2026-10-20)
+
+Samples `cdbef51` (line endings normalized in `e38d0ef`) adds the public retained
+ray-record query and moves spray's wand step onto it. [Execution record](plans/2026-10-20-gvdb-public-ray-query.md):
+**5/5** API tests, **19/19** spray tests, **19/19** graphics-only query/spray tests,
+both native adapters, zero CUDA memory errors and **2/2** installed static/shared
+consumers each. All twenty spray captures are byte-identical to the prior owned
+implementation. Inventory is **49/14/17/20/0**; section/compositing, remaining
+shading/integration and platform/performance/visual gates remain open.
