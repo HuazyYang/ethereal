@@ -134,6 +134,9 @@ The remaining work is:
 1. **H1: supported CUDA peers.** Transfer these gitlinks to a supported two-GPU
    host and execute the strict required-peer job. This host has only one CUDA GPU;
    its explicit required-peer failure is not acceptance.
+   The configured SSH host `work-studio` (`fysics`) was rechecked and also still
+   has one CUDA GPU. A supported peer host and its access details are needed;
+   see the hardware check in the Linux checklist.
 2. Reconcile final acceptance and reference disposition after H1 passes.
    W1 is complete: the private no-op OptiX miss record passes the affected tests,
    native checks, sanitizer and strict Windows matrices. Keep

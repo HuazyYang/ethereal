@@ -128,6 +128,17 @@ Linux work is complete, but the peer requirement has not been waived. This host
 has one CUDA adapter, and the required-peer invocation fails explicitly. H1 is
 **unassigned hardware work**, not a Linux pass. Run this on a supported pair.
 
+Hardware availability was rechecked on 2026-10-20 from aggregate `34cf431`.
+The configured SSH alias `work-studio` reaches `fysics`, which still exposes only
+one RTX 5070 Ti. The Windows workstation exposes only one RTX 4050 Laptop GPU.
+The strict Windows peer diagnostic exits 1 with
+`Required CUDA peer adapter 1 is unavailable (1 adapters)`.
+This confirms the missing prerequisite; it does not satisfy H1. The Linux
+checkout remains at `57531c1` with the same implementation gitlinks.
+Inventory, topology, revisions and the diagnostic are retained under
+`build/acceptance/peer-host-check-20261020-160820/` on the Windows workstation.
+The next required input is access to a host with a supported CUDA peer pair.
+
 ```sh
 cmake --preset slang-next-linux -B build/linux-peer -DOPTIX_ROOT="$OPTIX_ROOT" -DNVRHI_TEST_REQUIRE_CUDA_PEER=ON -DNVRHI_TEST_CUDA_LOCAL_ADAPTER=0 -DNVRHI_TEST_CUDA_PEER_ADAPTER=1
 cmake --build build/linux-peer --config Release --parallel 4

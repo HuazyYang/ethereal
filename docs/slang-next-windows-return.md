@@ -29,8 +29,8 @@ Only the NVIDIA GPU is a CUDA adapter. This machine cannot satisfy H1.
 The active worktree is now
 `D:/ps/repo/ethereal/.worktrees/ethereal-slang-next`, on branch `slang-next`.
 Aggregate and nested submodule worktree records were repaired. The main checkout
-and all submodules remained clean. The old sibling path contains no files;
-Windows-held empty directory shells may persist until their handles are released.
+and all submodules remained clean. The remaining empty directories were removed
+on the subsequent cleanup request; the old sibling path no longer exists.
 
 Historical build artifacts moved with the checkout. Their recorded absolute paths
 remain historical evidence, and their CMake caches must not be reused. Fresh
