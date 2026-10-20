@@ -39,7 +39,7 @@ Slang 2026.10.2, CUDA12.9, OptiX9, NVIDIA RTX4050 Laptop and AMD Radeon780M grap
 - Leaf-marker workflow acceptance covers exact flags, dirty/finished/stale tickets,
   inactive/reactivated leaves and retained GPU snapshots through the existing API.
 
-Latest committed samples implementation: `e38d0ef`. Runtime dependencies: NVRHI `c17545a`,
+Latest committed samples implementation: `1c5dfa2`. Runtime dependencies: NVRHI `c17545a`,
 Donut `c7ca1b2`, nested shader-tool `15b6ab0`. The aggregate gitlinks are authoritative.
 An external handoff checkpoint also committed intermediate work during the session;
 those commits were preserved without rewriting history.
@@ -58,6 +58,7 @@ graphics-only**, without skips. Subsequent additions passed:
 | Coordinate splitting | 25/25 | 4/4 | 2/2 each |
 | Leaf markers | 16/16 | 4/4 | 3/3 each |
 | Public ray records and spray | 24/24 | 19/19 | 2/2 each |
+| Shared sections and compositing | 23/23 | 18/18 | No public ABI change |
 
 Each slice passed native D3D11/D3D12/Vulkan validation on both graphics adapters
 and CUDA Compute Sanitizer with zero errors. Logs are local build artifacts under
@@ -87,6 +88,8 @@ The [kernel inventory](../ethereal-samples/docs/gvdb-cuda-entry-inventory.md) re
 retirement is authorized; keep the legacy sources/build path for comparison.
 Future ROCm/Metal/SYCL implementations remain outside the approved backend scope.
 
-Latest execution record: [public ray records](plans/2026-10-20-gvdb-public-ray-query.md).
-Spray uses the public query; all twenty captures exactly match the previous owned
-implementation. Section/compositing implementation is the next active slice.
+Latest execution record: [sections/compositing](plans/2026-10-20-gvdb-sections.md).
+Spray uses the public ray query and shared section renderer. The corrected section
+threshold changes 32 fixture pixels; all four APIs agree. Exhaustive integer
+compositing differs from legacy CUDA by at most one byte. Remaining rendering
+contracts and broad consumer/platform/performance gates are active.

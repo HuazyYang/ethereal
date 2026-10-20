@@ -474,3 +474,14 @@ both native adapters, zero CUDA memory errors and **2/2** installed static/share
 consumers each. All twenty spray captures are byte-identical to the prior owned
 implementation. Inventory is **49/14/17/20/0**; section/compositing, remaining
 shading/integration and platform/performance/visual gates remain open.
+
+## Shared sections and byte compositing (2026-10-20)
+
+The [execution record](plans/2026-10-20-gvdb-sections.md) covers retained 2D/3D
+section rendering and exact integer RGBA8 compositing. Spray adopts the shared
+section renderer. Affected Windows tests pass **23/23**, graphics-only **18/18**,
+native validation **6/6**, and CUDA memory checking reports zero errors. All four
+section captures agree; the corrected transfer threshold changes 32 pixels from
+the prior portable image. Exhaustive compositor comparison against retained CUDA
+differs by at most one byte. The section/compositing inventory remains partial
+pending broader scene/composition adoption; project acceptance is still open.
