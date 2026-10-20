@@ -39,7 +39,7 @@ Slang 2026.10.2, CUDA12.9, OptiX9, NVIDIA RTX4050 Laptop and AMD Radeon780M grap
 - Leaf-marker workflow acceptance covers exact flags, dirty/finished/stale tickets,
   inactive/reactivated leaves and retained GPU snapshots through the existing API.
 
-Latest committed samples implementation: `e04a839`. Runtime dependencies: NVRHI `2c06d77`,
+Latest committed samples implementation: `7d3e3a0`. Runtime dependencies: NVRHI `2c06d77`,
 Donut `c7ca1b2`, nested shader-tool `15b6ab0`. The aggregate gitlinks are authoritative.
 An external handoff checkpoint also committed intermediate work during the session;
 those commits were preserved without rewriting history.
@@ -83,8 +83,9 @@ matrix does not require a real CUDA peer pair; that external gate remains open.
 2. Resolve remaining linking/GPU-key/algorithm integration roles and record broad
    timing/memory comparisons separately from correctness. Current point association
    deliberately uses checked host topology and Slang GPU attribute expansion.
-   Leaf-marker acceptance covers host-owned markers; GPU-authored marker ingestion
-   and incremental key/link/delink orchestration remain separate integration work.
+   GPU-authored markers now pass through private fixed-pool editing, validated
+   fetch and transactional publication. Incremental key/link/delink orchestration
+   and device-driven allocation/compaction remain separate integration work.
 3. Run Linux Vulkan/CUDA and supported real multi-GPU peer acceptance on suitable
    hardware. This Windows machine cannot establish those completion gates.
 4. Rebuild/test the final aggregate matrix and installed packages from committed
@@ -117,3 +118,11 @@ graphics runs and CUDA memory checks pass. All 32 single-volume images are
 unchanged; all eight translated two-explosion modes pass documented comparison
 limits on four APIs. Section/compositing roles are sample-validated. The strict
 runner now requires the new layer algorithm and production-application tests.
+
+[Private GPU topology fetch](plans/2026-10-20-gvdb-device-topology-fetch.md) now
+exposes an additive installed factory. Actual GPU markers, retained source bytes,
+graph validation, stale host/channel/publication rejection and explicit caller
+completion pass four APIs. Focused owner/point tests 14/14, adoption/accumulation
+8/8, graphics-only 11/11, native adapters 6/6 and CUDA memory checks pass;
+installed static/shared consumers pass 2/2 each. The 433/326 full matrices predate
+this API. Linking remains foundation until incremental orchestration is integrated.

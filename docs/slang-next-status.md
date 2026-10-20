@@ -540,3 +540,15 @@ those expectations now include the same unrounded hierarchy bias as the shared
 RT regression oracle. All 18 affected RT/application tests and both full reruns
 pass. No runtime/public API changed in this checkpoint, so the installed-package
 results at the earlier checkpoint still cover the runtime binaries.
+
+## Explicit GPU topology editing and fetch (2026-10-20)
+
+Samples `7d3e3a0` adds the [private topology edit/fetch API](plans/2026-10-20-gvdb-device-topology-fetch.md).
+The caller records Slang edits into copied pools, records fetch, completes work,
+validates actual GPU bytes and publishes an ordinary generation ticket. Conflicting
+host/channel/publication changes reject stale work. Retained source bytes remain
+unchanged. Focused owner/point **14/14**, adoption/accumulation **8/8**,
+graphics-only **11/11**, native **6/6**, zero CUDA memory errors, installed
+static/shared **2/2 each** pass. No existing vtable changed. Device-driven growth,
+orphan compaction and incremental key/link/delink orchestration remain; inventory
+counts stay **49/23/17/11/0**. Full matrices at the preceding checkpoint are historical.

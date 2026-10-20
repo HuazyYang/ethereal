@@ -55,6 +55,7 @@ def main():
     for api in apis:
         required |= {f"gvdb_owned_modes_{api}", f"gvdb_owned_sections_{api}", f"gvdb_render_file_{api}",
                      f"gvdb_owned_layers_{api}", f"gvdb_render_layers_{api}"}
+        required.add(f"gvdb_nvrhi_topology_edit_{api}")
         required |= {f"gvdb_render_mode_{mode}_{api}" for mode in range(8)}
     missing = sorted(required - names)
     if missing:
