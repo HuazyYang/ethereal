@@ -617,3 +617,36 @@ not claimed byte-identical. All seven CUDA-enabled checkpoint captures still
 match their preserved baseline exactly. No source fix was needed for this check.
 Final installed NVRHI consumers pass static **2/2**, shared **1/1**; installed
 ray consumers pass static/shared **2/2 each**. Runtime gitlinks are unchanged.
+
+## Deferred Linux work and isolated deployment (2026-10-20)
+
+The user assigned Linux Vulkan/CUDA execution to a future Linux-host developer.
+The [Linux TODO handoff](slang-next-linux-todos.md) stages L0-L4 with toolchain and
+checkout requirements, full/graphics-only/production jobs, native diagnostics,
+CUDA memory checking, installed packages and runtime isolation. H1 tracks the
+supported real CUDA peer pair separately; neither requirement is waived. Local
+work continues without requesting a Linux host for this session.
+
+Aggregate `bb0eb36` adds a portable topology/ray acceptance-package wrapper and a
+Windows isolated-runtime check. The latter audits transitive compile/link commands
+and PE imports, stages 15 production executables plus runtime DLLs and compiled
+shader artifacts, removes developer SDK paths, and executes existing production
+fixtures from the staged copies. **61/61 full-runtime** and **45/45 graphics-only**
+routes pass with clean committed sources unchanged throughout. Every selected
+build graph excludes GPDevice, Thrust, cudart, NVCC and handwritten CUDA compilation;
+audited imports exclude Slang/NVRTC/cudart/compiler-library dependencies. Actual
+CUDA driver JIT/OptiX and graphics drivers remain runtime requirements.
+
+The source assets remain accessible, so this verifies shader/compiler deployment,
+not asset redistribution or operation on a driver-free machine. The same fixture
+oracles run; this is additional deployment evidence rather than a new full-matrix
+count. Source/runtime implementation and parent gitlinks are unchanged from the
+438/330 checkpoint.
+
+The new package wrapper builds static/shared variants without workstation-specific
+paths. Package CPU/ABI tests pass **5/5 each**; separately installed topology and ray
+consumers pass **2/2 each per linkage variant**, including actual GPU work, with
+CUDA/compiler package discovery disabled. Evidence is under
+`build/acceptance/isolated-{full,graphics}-final` and
+`build/acceptance/portable-package`. All local continuation checks pass; Linux L0-L4
+and real-peer H1 remain deferred external acceptance work. References stay retained.

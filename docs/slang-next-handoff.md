@@ -100,10 +100,23 @@ scan scratch is smaller; CPU peak working set is not GPU peak memory.
    sources available until then. Future ROCm/Metal/SYCL backends remain out of scope.
 
 Linux availability is no longer a request for this session: that work is deferred
-to the other host/developer. Continue local production dependency and isolated
-runtime checks. The committed `tools/gvdb-acceptance-package` replaces absolute
+to the other host/developer. Local production dependency and isolated runtime
+checks now pass at aggregate `bb0eb36`: **61/61 full-runtime** routes and **45/45
+graphics-only** routes, with clean sources unchanged throughout each run.
+The committed `tools/gvdb-acceptance-package` replaces absolute
 workstation paths in the topology/ray package setup. The Windows deployment tool
 `tools/run-slang-isolated-runtime.py` copies only selected executables, the runtime
 DLLs and offline shader artifacts, removes developer SDK paths, and runs the
 production fixtures from that separate directory. Source assets remain available;
 this is shader/compiler deployment validation, not asset redistribution.
+
+The 15 selected production targets' transitive build commands contain no
+GPDevice, Thrust, cudart, NVCC or `.cu/.cuh` compilation. Audited PE imports contain
+no Slang/NVRTC/cudart/GPDevice/compiler-library dependency. The portable topology/
+ray package wrapper passes static/shared CPU/ABI **5/5 each**, and its independently
+installed topology and ray consumers each pass **2/2 per linkage variant**, with
+CUDA/compiler SDK discovery disabled. Logs and hashed runtime manifests are in
+`build/acceptance/isolated-{full,graphics}-final` and
+`build/acceptance/portable-package`. Runtime gitlinks remain unchanged.
+Next integration work is to consume the Linux developer's L0-L4 results and the
+separate H1 peer evidence; final global acceptance remains pending those jobs.
