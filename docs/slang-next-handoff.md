@@ -1,11 +1,13 @@
 # Slang-next handoff
 
-Updated 2026-10-20 after the Windows return. **Linux L0-L4 and Windows W1 are
-complete; final plan acceptance still requires H1, real CUDA transfers on a
-supported peer pair.** Retained references remain available. The
+Updated 2026-10-21 after explicit scope direction from the user. **Linux L0-L4
+and Windows W1 are complete; the user waived multi-device CUDA validation and
+accepted GPU0-only coverage for this plan.** H1 is recorded as waived, not
+passed. Retained references remain available. The
 [Windows return](slang-next-windows-return.md) records the fresh Windows results
 and worktree relocation; the [Linux results](slang-next-linux-results.md) record
-L0-L4. Use the [remote Linux H1 handoff](slang-next-remote-linux-handoff.md) and [peer checklist](slang-next-linux-todos.md#h1-supported-real-cuda-peers-separate-hardware-prerequisite) on a supported two-GPU host.
+L0-L4. The remote Linux H1 handoff is retained as historical scope; it is no
+longer blocking under the user's revised GPU0-only requirement.
 
 ## Checkout and build
 
@@ -112,7 +114,7 @@ regresses D3D12/Vulkan process time, and portable full-scene reconstruction/rend
 processes remain slower than retained CUDA/OptiX on this fixture. Reused logical
 scan scratch is smaller; CPU peak working set is not GPU peak memory.
 
-## Linux return and remaining external acceptance
+## Linux return and final scope decision
 
 Linux L0–L4 have been executed and reviewed on the Linux host. See the
 [full return and evidence index](slang-next-linux-results.md) and
@@ -128,18 +130,15 @@ pass; isolated runtime routes are **31/31 full** and **17/17 graphics-only**.
 The result document distinguishes final implementation evidence from earlier
 graphics/production runs and preserves investigated failures.
 
-The remaining work is:
+The user's final scope decision on 2026-10-21 is:
 
-1. **H1: supported CUDA peers.** Transfer these gitlinks to a supported two-GPU
-   host and execute the strict required-peer job. This host has only one CUDA GPU;
-   its explicit required-peer failure is not acceptance.
-   The configured SSH host `work-studio` (`fysics`) still has one CUDA GPU. H1 is
-   handed off to a remote Linux developer; use [the remote H1 handoff](slang-next-remote-linux-handoff.md).
-2. Reconcile final acceptance and reference disposition after H1 passes.
-   W1 is complete: the private no-op OptiX miss record passes the affected tests,
-   native checks, sanitizer and strict Windows matrices. Keep
-   `ETHEREAL_BUILD_GVDB_LEGACY` and retained sources available until H1 and final
-   reconciliation are complete.
+1. **H1 is waived.** The current native Linux host exposes one RTX 5070 Ti and
+   the user explicitly requested GPU0-only CUDA validation. The required-peer
+   negative diagnostic remains recorded and is not relabeled as a pass.
+2. **Final reconciliation is complete under the revised scope.** W1 is complete:
+   the private no-op OptiX miss record passes the affected tests, native checks,
+   sanitizer and strict Windows matrices. Retained references and
+   `ETHEREAL_BUILD_GVDB_LEGACY` remain available for rollback and comparison.
 
 The portable `tools/gvdb-acceptance-package` continues to use installed NVRHI,
 without workstation-specific paths. `tools/run-slang-isolated-runtime.py` now

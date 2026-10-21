@@ -1,8 +1,9 @@
-# Remote Linux developer handoff: H1 CUDA peer acceptance
+# Remote Linux developer handoff: H1 CUDA peer acceptance (historical)
 
-This is the only remaining acceptance gate for the Ethereal Slang-next plan.
-Linux L0-L4 and Windows W1 are complete. Do not close the plan or retire the
-legacy references until this H1 job succeeds on a supported two-CUDA-GPU host.
+This document is retained as historical optional work. On 2026-10-21 the user
+explicitly waived multi-device CUDA validation and requested GPU0-only coverage.
+Linux L0-L4 and Windows W1 are complete, and final reconciliation proceeds under
+that revised scope. Do not report the single-GPU result as a peer pass.
 
 ## Exact source checkpoint
 

@@ -1,16 +1,16 @@
 # Slang-next Linux acceptance return — 2026-10-20
 
-Linux L0–L4 are complete on the RTX 5070 Ti host. At the time of this Linux
-return, final acceptance and reference retirement still needed **H1 (supported
-real CUDA peers)** and **W1 (Windows regression after the shared OptiX correction)**.
+Linux L0–L4 are complete on the RTX 5070 Ti host. W1 is complete. On 2026-10-21
+the user explicitly waived multi-device CUDA validation and requested GPU0-only
+coverage; H1 is therefore recorded as **waived, not passed**.
 Retained sources
 and `ETHEREAL_BUILD_GVDB_LEGACY` remain available.
 
 **Subsequent Windows return:** W1 now passes at aggregate `57531c1` with the same
 implementation gitlinks: 438/438 full, 330/330 graphics-only, native validation
 and five CUDA memory checks. See [the Windows return](slang-next-windows-return.md).
-The W1 instructions below preserve the original Linux handoff; H1 and final
-reconciliation are the remaining gates.
+The original H1 instructions below are retained as historical material; they are
+not required under the revised GPU0-only scope.
 
 ## Revisions and host
 
@@ -61,8 +61,9 @@ SDK/compiler hashes. Local SDKs and tools are under `build/linux-tools/`.
 | L4 isolated graphics runtime | **17/17** routes at `b942aa8`; clean sources unchanged | `linux-isolated-graphics-final/acceptance.json`, runtime, images and logs |
 | OptiX regression | Six focused tests pass; resource-array memory check has zero errors | `linux-optix-fix-focused.{log,xml}`, `linux-resource-arrays-memcheck.log` |
 | Final graphics regression | Cached/uncached resource-array test passes at `9230478` | `linux-graphics-resource-arrays-final.{log,xml}` |
-| H1 real supported peers | **Unavailable / unassigned hardware work**; only one CUDA adapter | `linux-peer-required.log`, inventory |
-| W1 affected Windows regression | **Unavailable on this Linux host** | Follow-up below |
+| GPU0-only final scope check | **4/4** CUDA/OptiX/resource-array/scene-RT tests with `CUDA_VISIBLE_DEVICES=0` | `gpu0-final-scope.{log,xml}` |
+| H1 real supported peers | **Waived by user; not passed**; only one CUDA adapter | `linux-peer-current/{result.json,direct-rerun.log,host-inventory.txt}` |
+| W1 affected Windows regression | **Complete**; 438/438 full and 330/330 graphics-only | [Windows return](slang-next-windows-return.md) |
 
 The production capture SHA256 is
 `b55ce3412a9b4e6ea39932f15b7b0c2a5d57a88f564824c04f8924d0415a32ad`
@@ -145,9 +146,9 @@ Use the matching linkage prefix when building each package. Consumers set
 invoker's PATH (`build/linux-tools/root/usr/bin` on this host); the staged process
 gets only `/usr/bin:/bin` and its runtime library directory.
 
-**H1:** transfer the committed revisions to a host with a supported CUDA peer pair
-and execute the required-peer job in the Linux checklist. Single-GPU negative
-behavior does not satisfy this gate.
+**H1 scope decision:** the user waived multi-device validation on 2026-10-21 and
+requested GPU0-only coverage. The single-GPU negative peer diagnostic remains
+evidence of the hardware boundary, not a peer pass.
 
 **W1:** rebuild the Windows full configuration with these gitlinks. Rerun the
 OptiX and resource-array regressions (including cached/uncached tables), scene RT,
@@ -155,4 +156,5 @@ and their CUDA sanitizer checks; then return a clean strict Windows matrix.
 At minimum the focused CTest filter is
 `cuda_slang_optix|cuda_optix|slang_resource_arrays|gvdb_scene_rt`.
 Earlier Windows 438/438 results predate the OptiX change and cannot certify it.
-Do not retire the retained reference until H1, W1 and final reconciliation pass.
+Final reconciliation is complete under the revised GPU0-only scope; retained
+references remain available for rollback and comparison.

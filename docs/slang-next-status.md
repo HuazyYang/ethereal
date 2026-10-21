@@ -692,5 +692,22 @@ sources and clean committed gitlinks. No runtime source changes were needed.
 
 The [Windows return](slang-next-windows-return.md) indexes logs and reproduction
 commands, including the preserved interrupted matrix and transient Windows build
-file-lock failures. H1 still requires a supported CUDA peer pair. Final acceptance
-and reference retirement remain pending H1 and final reconciliation.
+file-lock failures. At the time of this historical entry, H1 was still listed as
+required; the later GPU0-only scope reconciliation below supersedes that status.
+
+## Final scope reconciliation (2026-10-21)
+
+The user explicitly waived multi-device CUDA validation and requested GPU0-only
+coverage for this plan. The current native Linux host exposes one NVIDIA RTX 5070
+Ti (`GPU-76a81398-f023-b96f-ef07-b303ded77260`, CUDA ordinal 0, Vulkan ordinal 0);
+PCI, `/dev/nvidia*`, CUDA, Vulkan and P2P topology checks confirm that no second
+CUDA GPU is present. The required-peer diagnostic remains recorded as an explicit
+unavailable result under `build/acceptance/linux-peer-current/`; it is not counted
+as a peer pass.
+
+Under this revised scope, Linux L0–L4 and Windows W1 are complete and final
+reconciliation is complete. The full GPU0 Linux matrix is 248/248, graphics-only
+is 150/150, and the post-fix Windows matrices are 438/438 full and 330/330
+graphics-only. Retained references and `ETHEREAL_BUILD_GVDB_LEGACY` remain
+available for rollback and comparison. The historical remote H1 handoff remains
+in the repository only if multi-device validation is restored later.

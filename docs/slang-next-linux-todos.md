@@ -1,10 +1,12 @@
 # Slang-next Linux developer handoff
 
-Status: **L0–L4 completed on Linux on 2026-10-20**. See the
+Status: **L0–L4 completed on Linux on 2026-10-20; final scope reconciled on
+2026-10-21**. See the
 [revision-stamped results and evidence index](slang-next-linux-results.md).
-Full Vulkan/CUDA/OptiX passes 248/248; Vulkan-only passes 150/150. H1 is assigned to a remote Linux developer with a supported two-GPU host. The [W1 Windows return](slang-next-windows-return.md)
-now passes at the returned implementation gitlinks. Final acceptance and reference
-retirement remain pending H1 and final reconciliation.
+Full Vulkan/CUDA/OptiX passes 248/248; Vulkan-only passes 150/150. The user
+waived multi-device CUDA validation and accepted GPU0-only coverage. The [W1
+Windows return](slang-next-windows-return.md) passes at the returned
+implementation gitlinks. Final acceptance is complete under that revised scope.
 
 ## Inputs and return contract
 
@@ -121,11 +123,12 @@ ctest --test-dir "build/gvdb-topology-consumer-$kind" --output-on-failure --no-t
   `tools/run-slang-isolated-runtime.py` now supports Linux ELF staging, RPATH
   removal and loader auditing; full 31/31 and graphics-only 17/17 routes pass.
 
-## H1: Supported real CUDA peers (separate hardware prerequisite)
+## H1: Supported real CUDA peers (waived by user for this scope)
 
-Linux work is complete, but the peer requirement has not been waived. This host
-has one CUDA adapter, and the required-peer invocation fails explicitly. H1 is
-**unassigned hardware work**, not a Linux pass. Run this on a supported pair.
+The user explicitly waived multi-device CUDA validation on 2026-10-21 and
+requested GPU0-only coverage. This host has one CUDA adapter, and the required
+peer invocation fails explicitly. H1 is **waived**, not passed; no peer claim is
+made. All CUDA evidence in this plan uses physical GPU0.
 
 Hardware availability was rechecked on 2026-10-20 from aggregate `34cf431`.
 The configured SSH alias `work-studio` reaches `fysics`, which still exposes only
@@ -144,8 +147,11 @@ cmake --build build/linux-peer --config Release --parallel 4
 python3 tools/run-slang-acceptance.py --build build/linux-peer --profile linux-full --require-peer --require-clean --output build/acceptance/linux-peer
 ```
 
-- [ ] Remote Linux developer: substitute the actual supported ordinals, verify real native transfers, and retain pair capability/identity evidence. Run supported directional routes; unsupported reverse directions must reject explicitly. Follow [the remote handoff](slang-next-remote-linux-handoff.md).
-- [ ] Missing or unsupported required hardware fails the job. Do not delete the required test or count the Windows single-CUDA-adapter negative case as success.
+- [x] User scope decision: omit multi-device validation and retain the explicit
+  single-GPU diagnostic as unavailable evidence under
+  `build/acceptance/linux-peer-current/`.
+- [x] Record that H1 was waived rather than passed; the remote handoff remains
+  historical and is not a required follow-up for this scope.
 
 ## Final reconciliation
 
@@ -154,6 +160,6 @@ python3 tools/run-slang-acceptance.py --build build/linux-peer --profile linux-f
 - [x] W1: affected Windows OptiX/resource-array/scene-RT, six native checks and
   five sanitizer jobs pass. Clean strict matrices pass 438/438 full and 330/330
   graphics-only at `57531c1`; see [the Windows return](slang-next-windows-return.md).
-- [x] Update `docs/slang-next-status.md` and `docs/slang-next-handoff.md` once the
-  returned evidence is reviewed. Final acceptance and reference retirement stay
-  pending until H1 and final reconciliation are satisfied.
+- [x] Update `docs/slang-next-status.md`, `docs/slang-next-handoff.md` and the
+  results index after the user scope decision. Final reconciliation is complete
+  under GPU0-only scope; H1 remains explicitly waived.
