@@ -1,6 +1,18 @@
 # Slang-next implementation status
 
-The agreed scope and acceptance gates are in [the archived plan](plans/2026-10-18-ethereal-nvrhi-slang-support.md). This is an implementation checkpoint, not a completion claim. See [build and run instructions](slang-next-build.md).
+The agreed scope and acceptance gates are in [the archived plan](plans/2026-10-18-ethereal-nvrhi-slang-support.md). The current acceptance result is recorded below; older checkpoint entries remain historical evidence. See [build and run instructions](slang-next-build.md).
+
+## Current acceptance result (2026-10-21)
+
+The plan is accepted under the user's GPU0-only scope. Linux L0–L4 and Windows
+W1 pass with the recorded matrices and deployment checks; H1 multi-device CUDA
+peer validation is explicitly waived because the available host has one GPU.
+The final legacy cleanup is in samples `bdb8905` and aggregate `3f9a8c0`:
+the old CUDA/gp/affine host sources, launchers and legacy build option are
+removed, and a fresh graphics-only configure/build succeeds without CUDA or
+NVCC discovery. The focused GVDB acceptance tests pass 3/3. The historical
+checkpoint sections below are retained for evidence and must not override this
+current result.
 
 ## Workspace and references
 
@@ -200,7 +212,7 @@ renderer, including all 6,144 explosion pixels. A tests-disabled production buil
 runs pass. See the [execution record](plans/2026-10-19-gvdb-public-points-reduction-custom-checkpoint.md).
 Owned resampling and depth-map consumer migration are the next active slices.
 
-## Acceptance still outstanding
+## Historical acceptance snapshot (superseded by the current result above)
 
 | Milestone | Remaining work |
 | --- | --- |
@@ -652,7 +664,7 @@ CUDA/compiler package discovery disabled. Evidence is under
 and real-peer H1 remain deferred external acceptance work. The legacy reference tree is retired; the portable path remains the production implementation.
 
 
-## Linux acceptance return (2026-10-20)
+## Linux acceptance return (historical snapshot, 2026-10-20)
 
 The deferred L0–L4 work is now complete on Ubuntu 24.04.4 / RTX 5070 Ti, driver
 595.99.02, Slang 2026.10.2, CUDA 12.9 and OptiX 9.0. Final implementation
