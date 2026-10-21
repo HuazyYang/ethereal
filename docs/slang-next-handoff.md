@@ -143,7 +143,7 @@ The user's final scope decision on 2026-10-21 is:
 
 ## Legacy CUDA and affine-host cleanup
 
-The final M6 cleanup is complete in samples revision `e1bd920` (the
+The final M6 cleanup is complete in samples revision `bdb8905` (the
 submodule commit is recorded with this handoff). The retired surface included:
 
 - `gvdb/GPDevice*`, `gvdb/GVDB.h`, `GVDBVolume.cpp`, `GVDBScene.*`, the old
