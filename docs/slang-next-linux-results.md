@@ -3,8 +3,8 @@
 Linux L0–L4 are complete on the RTX 5070 Ti host. W1 is complete. On 2026-10-21
 the user explicitly waived multi-device CUDA validation and requested GPU0-only
 coverage; H1 is therefore recorded as **waived, not passed**.
-Retained sources
-and `ETHEREAL_BUILD_GVDB_LEGACY` remain available.
+The legacy reference sources and `ETHEREAL_BUILD_GVDB_LEGACY` option were retired
+by the final cleanup documented in the aggregate handoff.
 
 **Subsequent Windows return:** W1 now passes at aggregate `57531c1` with the same
 implementation gitlinks: 438/438 full, 330/330 graphics-only, native validation

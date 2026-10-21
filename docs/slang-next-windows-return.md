@@ -111,8 +111,6 @@ without source changes. Logs remain in `build/relocated-graphics-build.log`,
 `build/relocated-graphics-build-retry.log` and
 `build/relocated-graphics-build-retry-2.log`.
 
-Transfer these committed gitlinks to a supported CUDA peer host and execute
-[H1](slang-next-linux-todos.md#h1-supported-real-cuda-peers-separate-hardware-prerequisite).
-Return adapter identities/capabilities, actual directional transfer evidence and
-the strict required-peer report. Keep retained sources and
-`ETHEREAL_BUILD_GVDB_LEGACY` until H1 and final reconciliation pass.
+The original peer-host handoff is retained as historical material. H1 was later
+waived under the GPU0-only scope, and the legacy reference sources and
+`ETHEREAL_BUILD_GVDB_LEGACY` option were retired by the final cleanup.

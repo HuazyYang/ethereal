@@ -81,9 +81,13 @@ CUDA compute storage currently requires structured or raw buffers. Shader-tool r
 
 The installed static NVRHI package resolves its link dependencies. A shared NVRHI consumer does not require compiler or CUDA SDK discovery. Both installed-package paths have external consumer tests.
 
-## Legacy references and platform coverage
+## Portable GVDB and platform coverage
 
-`ETHEREAL_BUILD_GVDB_LEGACY=ON` enables old CUDA reference implementations and their dependencies. Set `ETHEREAL_BUILD_GVDB=OFF` when building legacy versions of migrated target names. The retained render-to-file, depth-map, point-fusion, point-cloud, interactive-optix and fluid-surface targets have been freshly rebuilt under `build/legacy-reference`; retain `ETHEREAL_WITH_SLANG=ON` when representative graphics samples are enabled.
+The GVDB production tree contains only the NVRHI/Slang implementations. The
+removed `ETHEREAL_BUILD_GVDB_LEGACY` option and its NVCC/gp reference targets
+must not be reintroduced. Keep `ETHEREAL_WITH_SLANG=ON` when representative
+GVDB applications are enabled; the host topology and VBX tests do not require
+CUDA toolkit discovery.
 
 Linux L0-L4 are complete on the external Linux host, including Vulkan/CUDA interop,
 installed SDKs and isolated deployment. The subsequent Windows W1 regression also

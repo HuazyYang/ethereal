@@ -51,8 +51,7 @@ analysis tests run), `demos/nv_asteroids`, `rt_reflections` and `work_graphs` (D
 |---|---|---|
 | `ETHEREAL_BUILD_SAMPLES` | ON | `ethereal-samples/src` |
 | `ETHEREAL_BUILD_BENCHMARKS` | ON | `ethereal-samples/benchmark` (needs `fxc.exe` from the Windows SDK) |
-| `ETHEREAL_BUILD_GVDB` | OFF | GVDB samples; enables the CUDA language |
-| `ETHEREAL_WITH_OPTIX` | OFF | locate the OptiX SDK |
+| `ETHEREAL_BUILD_GVDB` | OFF | portable GVDB Slang/NVRHI samples |
 | `ASTEROIDS_MATCH_CODEGEN` | ON | apply the benchmark's Release code generation (`/GL /arch:AVX2 ...`) to all of Donut |
 | `DONUT_WITH_KTX` | OFF | Donut's KTX2 support; turning it on fetches zstd from GitHub at configure time |
 | `ETHEREAL_AGILITY_SDK_VERSION` | 1.619.6 | D3D12 Agility SDK NuGet version loaded by the ray tracing samples; a `-preview` version needs Windows Developer Mode |

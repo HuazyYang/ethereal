@@ -214,11 +214,11 @@ Owned resampling and depth-map consumer migration are the next active slices.
 
 Spray-deposit completes the remaining executable rewrite; public ownership adoption and the broader acceptance gates remain in progress. Fluid reference comparisons now document the retained CUDA color-read defect and remaining stochastic differences. The archived plan's eleven sample directories include sample-utils; sph_fluid_pool is separate. The [mixed mesh/volume renderer](plans/2026-10-18-mixed-scene-slang-rt.md), point-cloud and fluid work belong to the current validation slice and are not part of the historical 130-test checkpoint.
 
-The new resample/3d-print viewer frames active index bounds. Its section plane uses normalized data height, and the inset scales with the output. The original fixed camera/section mapping and ImGui presentation are retained in legacy-main.cpp; matching legacy screenshots or performance is not claimed.
+The new resample/3d-print viewer frames active index bounds. Its section plane uses normalized data height, and the inset scales with the output. The original fixed camera/section mapping and ImGui presentation are historical comparison references; matching legacy screenshots or performance is not claimed.
 
 Local hardware is Windows x64 with one NVIDIA RTX 4050 Laptop GPU (driver 617.42). CUDA 12.9, OptiX 9.0, and Slang 2026.10.2 are the tested toolchain. No Linux execution or real multi-GPU success is claimed.
 
-Production migration is incomplete. The preserved reference implementations use donut::gp, handwritten CUDA, and their original host interfaces. They are gated by ETHEREAL_BUILD_GVDB_LEGACY; portable targets are gated separately by ETHEREAL_BUILD_GVDB. References remain available until replacements pass their acceptance gates.
+Production migration is complete for the current scope. The former donut::gp, affine host and handwritten CUDA reference implementations were retired in the final cleanup below; portable targets are the only production GVDB path.
 
 ## Owned resampling checkpoint (2026-10-19)
 
@@ -649,7 +649,7 @@ consumers pass **2/2 each per linkage variant**, including actual GPU work, with
 CUDA/compiler package discovery disabled. Evidence is under
 `build/acceptance/isolated-{full,graphics}-final` and
 `build/acceptance/portable-package`. All local continuation checks pass; Linux L0-L4
-and real-peer H1 remain deferred external acceptance work. References stay retained.
+and real-peer H1 remain deferred external acceptance work. The legacy reference tree is retired; the portable path remains the production implementation.
 
 
 ## Linux acceptance return (2026-10-20)
@@ -675,8 +675,8 @@ entry counts are unchanged.
 
 **Final acceptance remains pending:** H1 needs a supported real CUDA peer pair
 (this host has one CUDA GPU), and W1 must rerun affected Windows tests after the
-shared OptiX change. Earlier Windows results predate that fix. Retained references
-and legacy build support remain available.
+shared OptiX change. Earlier Windows results predate that fix. The legacy reference
+tree is retired by the final cleanup documented below.
 
 
 ## Windows return and worktree relocation (2026-10-20)
@@ -708,6 +708,5 @@ as a peer pass.
 Under this revised scope, Linux L0–L4 and Windows W1 are complete and final
 reconciliation is complete. The full GPU0 Linux matrix is 248/248, graphics-only
 is 150/150, and the post-fix Windows matrices are 438/438 full and 330/330
-graphics-only. Retained references and `ETHEREAL_BUILD_GVDB_LEGACY` remain
-available for rollback and comparison. The historical remote H1 handoff remains
+graphics-only. The legacy reference tree is retired; the historical remote H1 handoff remains
 in the repository only if multi-device validation is restored later.

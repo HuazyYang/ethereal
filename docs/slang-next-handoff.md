@@ -3,7 +3,9 @@
 Updated 2026-10-21 after explicit scope direction from the user. **Linux L0-L4
 and Windows W1 are complete; the user waived multi-device CUDA validation and
 accepted GPU0-only coverage for this plan.** H1 is recorded as waived, not
-passed. Retained references remain available. The
+passed. The legacy GVDB CUDA/gp implementation has since been retired from
+`gvdb_samples`; the portable NVRHI/Slang path is now the only production path.
+The
 [Windows return](slang-next-windows-return.md) records the fresh Windows results
 and worktree relocation; the [Linux results](slang-next-linux-results.md) record
 L0-L4. The remote Linux H1 handoff is retained as historical scope; it is no
@@ -137,8 +139,26 @@ The user's final scope decision on 2026-10-21 is:
    negative diagnostic remains recorded and is not relabeled as a pass.
 2. **Final reconciliation is complete under the revised scope.** W1 is complete:
    the private no-op OptiX miss record passes the affected tests, native checks,
-   sanitizer and strict Windows matrices. Retained references and
-   `ETHEREAL_BUILD_GVDB_LEGACY` remain available for rollback and comparison.
+   sanitizer and strict Windows matrices.
+
+## Legacy CUDA and affine-host cleanup
+
+The final M6 cleanup is complete in samples revision `e1bd920` (the
+submodule commit is recorded with this handoff). The retired surface included:
+
+- `gvdb/GPDevice*`, `gvdb/GVDB.h`, `GVDBVolume.cpp`, `GVDBScene.*`, the old
+  affine/gp operation adapters, and the `GVDBOperators.cu`/`GVDBParticles.cu`
+  PTX sources;
+- the CUDA raycast/OptiX and fluid PTX trees, legacy sample launchers, and the
+  gp-only sample framework; and
+- the legacy CMake entry points, CUDA language enablement, and
+  `ETHEREAL_BUILD_GVDB_LEGACY` option.
+
+Portable `GVDBHostVolume`, `GVDBNvrhi*`, Slang shader manifests, migrated sample
+applications, and their tests remain. The cleanup acceptance is source-level:
+`rg` finds no `GPDevice`, `donut::gp`, legacy `.cu/.cuh` GVDB kernels, or legacy
+CMake target in the production tree; a fresh graphics-only configure/build
+must also succeed without CUDA toolkit or NVCC discovery.
 
 The portable `tools/gvdb-acceptance-package` continues to use installed NVRHI,
 without workstation-specific paths. `tools/run-slang-isolated-runtime.py` now

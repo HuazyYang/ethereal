@@ -9,13 +9,9 @@ cmake_minimum_required(VERSION 3.22)
 
 set(ETHEREAL_LANGUAGES C CXX)   # C: Donut's thirdparty modules (glfw, stb, ...) contain C sources.
 
-# Portable GVDB uses NVRHI and offline Slang. CUDA/NVCC is needed only by
-# the retained legacy reference implementation.
+# Portable GVDB uses NVRHI and offline Slang. CUDA is a runtime backend and
+# does not require NVCC in the application build.
 option(ETHEREAL_BUILD_GVDB "Build portable GVDB Slang samples and tests" ON)
-option(ETHEREAL_BUILD_GVDB_LEGACY "Build the legacy GVDB CUDA reference samples" OFF)
-if (ETHEREAL_BUILD_GVDB_LEGACY)
-	list(APPEND ETHEREAL_LANGUAGES CUDA)
-endif()
 
 project(ethereal VERSION 1.0 LANGUAGES ${ETHEREAL_LANGUAGES})
 
@@ -30,12 +26,6 @@ set(NVRHI_WITH_SLANG "${ETHEREAL_WITH_SLANG}" CACHE BOOL "Load offline Slang exe
 # Point NV_ASTEROIDS_ORIGINAL_DIR at that installation.
 option(ETHEREAL_BUILD_NV_ASTEROIDS "Build the nv_asteroids demo (needs NV_ASTEROIDS_ORIGINAL_DIR)" OFF)
 
-# OptiX (header-only SDK) backs the ray tracing path of the GVDB samples. ON by default
-# because it is optional at configure time: when the SDK is not found the OptiX backend and
-# the OptiX samples are skipped. cmake/FindOptiX.cmake looks at OptiX_INSTALL_DIR (cache or
-# environment) and the default install location.
-option(ETHEREAL_WITH_OPTIX "Build the OptiX ray tracing backend of the GVDB samples when the SDK is found" ON)
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
@@ -47,18 +37,6 @@ enable_testing()
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 # The package manager lives in nvrhi, the deepest project that needs it; everything includes that copy.
 include("${CMAKE_CURRENT_SOURCE_DIR}/ethereal-nvrhi/cmake/EPM.cmake")
-
-set(ETHEREAL_OPTIX_FOUND OFF)
-if (ETHEREAL_WITH_OPTIX AND ETHEREAL_BUILD_GVDB_LEGACY)
-	find_package(OptiX)
-	if (OptiX_INCLUDE)
-		set(ETHEREAL_OPTIX_FOUND ON)
-		message(STATUS "OptiX headers: ${OptiX_INCLUDE}")
-	else()
-		message(STATUS "OptiX SDK not found; the OptiX backend of the GVDB samples is disabled "
-			"(set OptiX_INSTALL_DIR to enable it)")
-	endif()
-endif()
 
 if (MSVC)
 	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
