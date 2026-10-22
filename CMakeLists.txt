@@ -32,6 +32,15 @@ option(ETHEREAL_BUILD_NV_ASTEROIDS "Build the nv_asteroids demo (needs NV_ASTERO
 # environment) and the default install location.
 option(ETHEREAL_WITH_OPTIX "Build the OptiX ray tracing backend of the GVDB samples when the SDK is found" ON)
 
+# The CUDA backend of nvrhi (ethereal-nvrhi ADR 0011): CUDA 12 headers (the driver is loaded at run time), with
+# OptiX ray tracing when ETHEREAL_WITH_OPTIX is on. nvrhi's tests compile their Slang fixtures with ShaderTool.
+option(ETHEREAL_WITH_CUDA "Build the CUDA (and OptiX) backend of nvrhi" OFF)
+if (ETHEREAL_WITH_CUDA)
+	set(NVRHI_WITH_CUDA ON CACHE BOOL "" FORCE)
+	set(NVRHI_WITH_OPTIX ${ETHEREAL_WITH_OPTIX} CACHE BOOL "" FORCE)
+	set(NVRHI_SHADERTOOL_TARGET ShaderTool CACHE STRING "" FORCE)
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
@@ -39,6 +48,13 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 # ctest only sees tests registered below a directory that called enable_testing() at the root.
 enable_testing()
+
+# ShaderTool writes NVRHI shader containers with its own copy of nvrhi's format header (ethereal-nvrhi ADR 0012):
+# the two copies must stay identical.
+add_test(NAME shader_container_header_copy
+	COMMAND ${CMAKE_COMMAND} -E compare_files
+		"${CMAKE_CURRENT_SOURCE_DIR}/ethereal-nvrhi/include/nvrhi/shader-container.h"
+		"${CMAKE_CURRENT_SOURCE_DIR}/ethereal-donut/thirdparty/shader-tool/include/nvrhi-shader-container.h")
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 # The package manager lives in nvrhi, the deepest project that needs it; everything includes that copy.

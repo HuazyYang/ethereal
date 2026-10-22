@@ -104,6 +104,77 @@ function(ethereal_compile_shaders)
     ethereal_disable_vs_hlsl_rule(${arg_TARGET})
 endfunction()
 
+# ethereal_compile_shader_containers() -- Slang modules compiled offline into NVRHI shader containers (code and
+# reflection per target; ethereal-nvrhi ADR 0012), through ShaderTool's shadertool_add_shader_containers().
+#
+#   ethereal_compile_shader_containers(
+#       TARGET            <target>                   # custom target to create
+#       SOURCES           <file.slang>...            # one container per module: <OUTPUT_DIRECTORY>/<stem>.nvsc
+#       [TARGETS <dxil|spirv|dxbc|ptx|optix>...]     # default: dxil and spirv, each dropped if Donut lacks the API
+#       [OUTPUT_DIRECTORY <dir>]                     # default: <bin>/shaders/<target without _shaders>
+#       [INCLUDE_DIRECTORIES <dir>...]               # Donut's include dir is always added
+#       [DEFINES <name[=value]>...]
+#       [FOLDER <ide folder>]
+#       [EXTRA_FLAGS <flag>...])
+#
+# The SPIR-V bindings get NVRHI's default register shifts. ptx and optix need nvrhi's CUDA backend; optix is
+# compiled against the OptiX SDK that nvrhi found.
+function(ethereal_compile_shader_containers)
+    cmake_parse_arguments(arg
+        ""
+        "TARGET;OUTPUT_DIRECTORY;FOLDER"
+        "SOURCES;TARGETS;INCLUDE_DIRECTORIES;DEFINES;EXTRA_FLAGS"
+        ${ARGN})
+
+    if(NOT arg_TARGET OR NOT arg_SOURCES)
+        message(FATAL_ERROR "ethereal_compile_shader_containers: TARGET and SOURCES are required")
+    endif()
+
+    if(NOT arg_TARGETS)
+        set(arg_TARGETS dxil spirv)
+    endif()
+    set(targets "")
+    foreach(target IN LISTS arg_TARGETS)
+        string(TOLOWER "${target}" target)
+        if((target STREQUAL "dxil" AND NOT DONUT_WITH_DX12) OR
+           (target STREQUAL "spirv" AND NOT DONUT_WITH_VULKAN) OR
+           (target STREQUAL "dxbc" AND NOT DONUT_WITH_DX11) OR
+           ((target STREQUAL "ptx" OR target STREQUAL "optix") AND NOT NVRHI_WITH_CUDA) OR
+           (target STREQUAL "optix" AND NOT NVRHI_WITH_OPTIX))
+            continue()
+        endif()
+        list(APPEND targets ${target})
+    endforeach()
+    if(NOT targets)
+        message(STATUS "${arg_TARGET}: no shader container target is enabled; skipped")
+        return()
+    endif()
+
+    if(NOT arg_OUTPUT_DIRECTORY)
+        string(REGEX REPLACE "_shaders$" "" stem "${arg_TARGET}")
+        set(arg_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders/${stem}")
+    endif()
+
+    set(optix_option "")
+    if("optix" IN_LIST targets)
+        set(optix_option OPTIX_INCLUDE_DIR "${NVRHI_OPTIX_INCLUDE_DIR}")
+    endif()
+
+    shadertool_add_shader_containers(
+        TARGET ${arg_TARGET}
+        SOURCES ${arg_SOURCES}
+        TARGETS ${targets}
+        OUTPUT_DIR "${arg_OUTPUT_DIRECTORY}"
+        INCLUDE_DIRS ${arg_INCLUDE_DIRECTORIES} "${DONUT_SHADER_INCLUDE_DIR}"
+        DEFINES ${arg_DEFINES}
+        EXTRA_FLAGS ${arg_EXTRA_FLAGS}
+        ${optix_option})
+
+    if(arg_FOLDER)
+        set_target_properties(${arg_TARGET} PROPERTIES FOLDER "${arg_FOLDER}")
+    endif()
+endfunction()
+
 # The Visual Studio generators hand every .hlsl listed as a target source to
 # their built-in FXC rule ("error X4502: invalid vs_2_0 output semantic"). Mark
 # them as not-to-be-built. Harmless with Ninja.
