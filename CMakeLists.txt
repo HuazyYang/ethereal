@@ -7,15 +7,8 @@ cmake_minimum_required(VERSION 3.22)
 #
 # This file configures the shared build environment and adds the sub-projects.
 
-set(ETHEREAL_LANGUAGES C CXX)   # C: Donut's thirdparty modules (glfw, stb, ...) contain C sources.
-
-# GVDBSamples needs CUDA; it is opt-in so that configuring does not require the CUDA Toolkit.
-option(ETHEREAL_BUILD_GVDB "Build the GVDB samples (requires the CUDA Toolkit)" OFF)
-if (ETHEREAL_BUILD_GVDB)
-	list(APPEND ETHEREAL_LANGUAGES CUDA)
-endif()
-
-project(ethereal VERSION 1.0 LANGUAGES ${ETHEREAL_LANGUAGES})
+# C: Donut's thirdparty modules (glfw, stb, ...) contain C sources.
+project(ethereal VERSION 1.0 LANGUAGES C CXX)
 
 option(ETHEREAL_BUILD_SAMPLES    "Build ethereal-samples (src/)" OFF)
 option(ETHEREAL_BUILD_BENCHMARKS "Build ethereal-samples benchmarks (benchmark/)" OFF)
@@ -26,19 +19,20 @@ option(ETHEREAL_BUILD_BENCHMARKS "Build ethereal-samples benchmarks (benchmark/)
 # Point NV_ASTEROIDS_ORIGINAL_DIR at that installation.
 option(ETHEREAL_BUILD_NV_ASTEROIDS "Build the nv_asteroids demo (needs NV_ASTEROIDS_ORIGINAL_DIR)" OFF)
 
-# OptiX (header-only SDK) backs the ray tracing path of the GVDB samples. ON by default
-# because it is optional at configure time: when the SDK is not found the OptiX backend and
-# the OptiX samples are skipped. cmake/FindOptiX.cmake looks at OptiX_INSTALL_DIR (cache or
-# environment) and the default install location.
-option(ETHEREAL_WITH_OPTIX "Build the OptiX ray tracing backend of the GVDB samples when the SDK is found" ON)
-
 # The CUDA backend of nvrhi (ethereal-nvrhi ADR 0011): CUDA 12 headers (the driver is loaded at run time), with
-# OptiX ray tracing when ETHEREAL_WITH_OPTIX is on. nvrhi's tests compile their Slang fixtures with ShaderTool.
+# OptiX ray tracing unless NVRHI_WITH_OPTIX is turned off (nvrhi's option; it finds the OptiX SDK 9.0 headers
+# through OPTIX_ROOT or OptiX_INSTALL_DIR). nvrhi's tests compile their Slang fixtures with ShaderTool.
 option(ETHEREAL_WITH_CUDA "Build the CUDA (and OptiX) backend of nvrhi" OFF)
 if (ETHEREAL_WITH_CUDA)
 	set(NVRHI_WITH_CUDA ON CACHE BOOL "" FORCE)
-	set(NVRHI_WITH_OPTIX ${ETHEREAL_WITH_OPTIX} CACHE BOOL "" FORCE)
 	set(NVRHI_SHADERTOOL_TARGET ShaderTool CACHE STRING "" FORCE)
+endif()
+
+# The GVDB samples run on the CUDA backend of nvrhi, with Slang kernels (no CUDA C++); the OptiX samples need
+# NVRHI_WITH_OPTIX. Opt-in, so that configuring does not require the CUDA Toolkit headers.
+option(ETHEREAL_BUILD_GVDB "Build the GVDB samples (needs ETHEREAL_WITH_CUDA)" OFF)
+if (ETHEREAL_BUILD_GVDB AND NOT ETHEREAL_WITH_CUDA)
+	message(FATAL_ERROR "ETHEREAL_BUILD_GVDB needs the CUDA backend of nvrhi: configure with -DETHEREAL_WITH_CUDA=ON")
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
@@ -59,18 +53,6 @@ add_test(NAME shader_container_header_copy
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 # The package manager lives in nvrhi, the deepest project that needs it; everything includes that copy.
 include("${CMAKE_CURRENT_SOURCE_DIR}/ethereal-nvrhi/cmake/EPM.cmake")
-
-set(ETHEREAL_OPTIX_FOUND OFF)
-if (ETHEREAL_WITH_OPTIX AND ETHEREAL_BUILD_GVDB)
-	find_package(OptiX)
-	if (OptiX_INCLUDE)
-		set(ETHEREAL_OPTIX_FOUND ON)
-		message(STATUS "OptiX headers: ${OptiX_INCLUDE}")
-	else()
-		message(STATUS "OptiX SDK not found; the OptiX backend of the GVDB samples is disabled "
-			"(set OptiX_INSTALL_DIR to enable it)")
-	endif()
-endif()
 
 if (MSVC)
 	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")

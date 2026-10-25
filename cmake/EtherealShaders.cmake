@@ -112,6 +112,7 @@ endfunction()
 #       SOURCES           <file.slang>...            # one container per module: <OUTPUT_DIRECTORY>/<stem>.nvsc
 #       [TARGETS <dxil|spirv|dxbc|ptx|optix>...]     # default: dxil and spirv, each dropped if Donut lacks the API
 #       [OUTPUT_DIRECTORY <dir>]                     # default: <bin>/shaders/<target without _shaders>
+#       [BASE_DIRECTORY <dir>]                       # sources below it keep their subdirectory in the output
 #       [INCLUDE_DIRECTORIES <dir>...]               # Donut's include dir is always added
 #       [DEFINES <name[=value]>...]
 #       [FOLDER <ide folder>]
@@ -122,7 +123,7 @@ endfunction()
 function(ethereal_compile_shader_containers)
     cmake_parse_arguments(arg
         ""
-        "TARGET;OUTPUT_DIRECTORY;FOLDER"
+        "TARGET;OUTPUT_DIRECTORY;BASE_DIRECTORY;FOLDER"
         "SOURCES;TARGETS;INCLUDE_DIRECTORIES;DEFINES;EXTRA_FLAGS"
         ${ARGN})
 
@@ -155,6 +156,11 @@ function(ethereal_compile_shader_containers)
         set(arg_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders/${stem}")
     endif()
 
+    set(base_option "")
+    if(arg_BASE_DIRECTORY)
+        set(base_option BASE_DIRECTORY "${arg_BASE_DIRECTORY}")
+    endif()
+
     set(optix_option "")
     if("optix" IN_LIST targets)
         set(optix_option OPTIX_INCLUDE_DIR "${NVRHI_OPTIX_INCLUDE_DIR}")
@@ -168,6 +174,7 @@ function(ethereal_compile_shader_containers)
         INCLUDE_DIRS ${arg_INCLUDE_DIRECTORIES} "${DONUT_SHADER_INCLUDE_DIR}"
         DEFINES ${arg_DEFINES}
         EXTRA_FLAGS ${arg_EXTRA_FLAGS}
+        ${base_option}
         ${optix_option})
 
     if(arg_FOLDER)

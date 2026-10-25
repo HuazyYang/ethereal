@@ -45,14 +45,15 @@ cd build/bin && ./basic_triangle                    # any sample; DDGISample nee
 No vcpkg is involved: GLFW, imgui, stb, cgltf and the Vulkan headers are fetched at configure time. A GTest that
 is not in a system location is found with `-DCMAKE_PREFIX_PATH=<prefix>`. GLFW builds its X11 backend only when
 `wayland-scanner` is missing. Not built on Linux: `benchmark/Asteroids` (D3D11/D3D12 baselines; only its Python
-analysis tests run), `demos/nv_asteroids`, `rt_reflections` and `work_graphs` (D3D12), and the GVDB samples (CUDA, opt-in).
+analysis tests run), `demos/nv_asteroids`, `rt_reflections` and `work_graphs` (D3D12), and the GVDB samples (CUDA backend, opt-in).
 
 | CMake option | Default | |
 |---|---|---|
 | `ETHEREAL_BUILD_SAMPLES` | ON | `ethereal-samples/src` |
 | `ETHEREAL_BUILD_BENCHMARKS` | ON | `ethereal-samples/benchmark` (needs `fxc.exe` from the Windows SDK) |
-| `ETHEREAL_BUILD_GVDB` | OFF | GVDB samples; enables the CUDA language |
-| `ETHEREAL_WITH_OPTIX` | OFF | locate the OptiX SDK |
+| `ETHEREAL_WITH_CUDA` | OFF | the CUDA backend of nvrhi (CUDA 12 headers; the driver is loaded at run time) |
+| `NVRHI_WITH_OPTIX` | ON with CUDA | OptiX ray tracing in the CUDA backend (OptiX SDK 9.0 headers, found through `OptiX_INSTALL_DIR`) |
+| `ETHEREAL_BUILD_GVDB` | OFF | GVDB samples (Slang kernels on the CUDA backend); needs `ETHEREAL_WITH_CUDA` |
 | `ASTEROIDS_MATCH_CODEGEN` | ON | apply the benchmark's Release code generation (`/GL /arch:AVX2 ...`) to all of Donut |
 | `DONUT_WITH_KTX` | OFF | Donut's KTX2 support; turning it on fetches zstd from GitHub at configure time |
 | `ETHEREAL_AGILITY_SDK_VERSION` | 1.619.6 | D3D12 Agility SDK NuGet version loaded by the ray tracing samples; a `-preview` version needs Windows Developer Mode |
