@@ -91,3 +91,4 @@ Commits (with repository), files, related ADRs and plans.
 | --- | --- | --- | --- |
 | [0001](0001-snake-case-directory-names.md) | Directory names are `snake_case` | Proposed | 2026-10-04 |
 | [0002](0002-query-cast-replaces-dynamic-cast-in-donut-and-samples.md) | `query_cast` replaces `dynamic_cast` in donut and the samples | Accepted | 2026-10-10 |
+| [0003](0003-render-graph-for-donut.md) | A new render graph for donut on the slang-next RHI | Proposed | 2026-10-21 |
