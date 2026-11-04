@@ -201,6 +201,24 @@ Starts only on the user's instruction. Planned content, to be detailed then:
 *Filled in per step: what was done, the commits (repository and short hash), and every deviation from
 the plan with its reason.*
 
+*P1.0 as built (2026-11-05).*
+- The aggregate `rdg` (docs only) was rebased onto `main` `264ac18`: `7f52e22` (design draft) and
+  `0965ff7` (design accepted, this plan). The one conflict, the plan index, kept both rows.
+- The submodules were cloned into the worktree from the local repositories with `protocol.file.allow`
+  and per-command URL overrides. Their git directories are under `.git/worktrees/rdg/modules/`; the main
+  checkout's `.git/modules/*` and its `core.worktree` settings are unchanged. `origin` was set back to
+  the GitHub remotes. donut's own config records `thirdparty/shader-tool`, which stays at `b5bec4b`.
+- `rdg` branches: ethereal-nvrhi from `123d105`, ethereal-donut from `4f4b31c`, ethereal-samples from
+  `37ac258`.
+- Build directory `.worktrees/rdg/build`, configured with the main checkout's options (samples,
+  benchmarks, GVDB, WaveWorks, CUDA, nv_asteroids, donut and nvrhi tests, discrete GPU) and the shared
+  vcpkg install directory. Configure fetched its dependencies over the network without trouble.
+- Commits: ethereal-nvrhi `505503b` (ADR 0015 and its index row), ethereal-donut `364b270`
+  (`doc/RdgDesign.md` superseded).
+- **Baseline:** Release build of all 1452 steps; ctest 45/45, the same as the main checkout.
+- **Deviation:** no separate Debug baseline build. The branch points are the main checkout's own
+  commits, and every later step builds Debug for its validation runs.
+
 ## Verification results
 
 *Filled in as steps complete.*
