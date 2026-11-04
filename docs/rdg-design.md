@@ -587,10 +587,19 @@ writes. Before choosing a state, the compiler looks ahead over the whole epoch:
 
 | Readers in one epoch | D3D12 legacy | D3D12 enhanced | Vulkan |
 | --- | --- | --- | --- |
-| depth test (read-only) + compute sampling + pixel sampling | `DEPTH_READ \| PIXEL_SHADER_RESOURCE \| NON_PIXEL_SHADER_RESOURCE` | layout `DEPTH_STENCIL_READ`, access `DEPTH_STENCIL_READ \| SHADER_RESOURCE` | `DEPTH_STENCIL_READ_ONLY_OPTIMAL` |
+| depth test (read-only) + compute sampling + pixel sampling | `DEPTH_READ \| PIXEL_SHADER_RESOURCE \| NON_PIXEL_SHADER_RESOURCE` | layout `DIRECT_QUEUE_GENERIC_READ` (direct queue only), access `DEPTH_STENCIL_READ \| SHADER_RESOURCE` | `DEPTH_STENCIL_READ_ONLY_OPTIMAL` |
 | sampling + copy source | `*_SHADER_RESOURCE \| COPY_SOURCE` | layout `GENERIC_READ` | `GENERAL` (cost) or two groups, by `LatticePolicy` |
-| sampling + UAVRead | incompatible: two groups | layout `UNORDERED_ACCESS`, access `SHADER_RESOURCE \| UNORDERED_ACCESS` | `GENERAL` |
+| sampling + UAVRead (texture) | incompatible: two groups | incompatible: two groups | `GENERAL` |
 | vertex + index + indirect buffer | OR of the three | OR of accesses | OR of accesses |
+
+*Corrected 2026-11-05 (P1.1), against the layout/access table of the enhanced-barrier specification
+and the Agility SDK 1.619 debug layer.* `DEPTH_STENCIL_READ` admits only `DEPTH_STENCIL_READ` access,
+and `UNORDERED_ACCESS` admits only `UNORDERED_ACCESS`. `DIRECT_QUEUE_GENERIC_READ` admits depth reads,
+shader reads, copy and resolve sources and shading-rate reads together. No layout that is valid on
+every queue admits a UAV access together with another access (`DIRECT_QUEUE_COMMON` and
+`COMPUTE_QUEUE_COMMON` each serve one queue type), so nvrhi's D3D12 `barriers` refuses such a texture
+state on both paths, and the lattice splits those readers. The direct-queue-only layout of the first row
+gives the same three groups for async SSAO in 6.11 as the legacy path.
 
 The first row is the case nvrhi handles worst today. A frame that renders depth, tests against it
 and samples it costs four transitions per frame, and the combination asserts on the enhanced path.

@@ -219,10 +219,110 @@ the plan with its reason.*
 - **Deviation:** no separate Debug baseline build. The branch points are the main checkout's own
   commits, and every later step builds Debug for its validation runs.
 
+*P1.1 as built (2026-11-05).* The ADR 0015 RHI is in ethereal-nvrhi `rdg`, as one commit.
+- **Interfaces:**
+  - `IResource` (with `queryHeapBinding`) under textures, staging textures, sampler-feedback
+    textures, buffers, opacity micromaps and acceleration structures, in all 19 QI tables;
+  - `SubresourceRegion`, `PlaneMask` and `ResourceBarrier`, plus `ICommandList::barriers` and
+    `setExplicitBarrierScope`;
+  - the three `Feature` values;
+  - `IFence`, `FenceDesc`, `FenceValue`, `SubmitDesc`, `IDevice::createFence`, `submit`,
+    `queueWaitFence`, `queueSignalFence` and `waitFences`.
+
+  They are as accepted in design section 8. `executeCommandLists` is a `submit` on every backend.
+- **Backends:**
+  - D3D12 legacy and enhanced: `d3d12-barriers.cpp`, `d3d12-fence.cpp`.
+  - Vulkan: sync2 barriers, events for splits, queue-family release/acquire, timeline semaphores
+    (`vulkan-barriers.cpp`, `vulkan-fence.cpp`).
+  - D3D11: validation only; `ID3D11Fence` through `ID3D11Device5`.
+  - CUDA: validation only; the (value, `CUevent`) ring.
+  - Validation layer: the rules of 8.2 (`validation-barriers.cpp`).
+- **Tests:** `nvrhi_explicit_barrier_tests`, with ctest entries `explicit_barriers_d3d11`, `_d3d12`,
+  `_vulkan` and `_cuda`. Each creates its device through `createDeviceOnAdapter` on the NVIDIA adapter.
+  They cover:
+  - features and heap bindings;
+  - colour barriers: discard, a split pair across unrelated work, a combined read state, UAV
+    barriers, and a readback;
+  - depth and stencil planes transitioned separately (D24S8);
+  - aliasing: placed textures, the byte-overlap rule, and a readback of the incoming alias;
+  - every validation rule, including a state call inside an explicit-barrier scope and a texture
+    state D3D12 cannot hold;
+  - the CPU wait table: poll, finite (about 20 ms), infinite, `waitFences` any and all;
+  - CPU and GPU signals;
+  - a producer/consumer pair on two queues with a fence and, on Vulkan, an ownership transfer, read
+    back;
+  - on Vulkan, a deliberate write-after-write hazard that synchronization validation must report.
+- **Deviations from the plan text:**
+  - One test executable, not `nvrhi_barrier_tests` and `nvrhi_fence_tests`: the cross-queue test
+    needs both.
+  - The `SubresourceRegion` helpers are inline in `nvrhi.h`, because ABI rule E forbids bodyless
+    non-virtual members in public headers. `resource-barrier.cpp` holds the layout assertions
+    (`SubresourceRegion` 20 bytes, `TransitionBarrier` 48, `ResourceBarrier` 56 with the union at
+    offset 8) and the shared helpers.
+  - D3D11 signals from the CPU through `ID3D11DeviceContext4::Signal` plus a flush, and flushes before
+    every wait. `ID3D11Fence` has no CPU-side signal that orders against the context.
+  - CUDA fences with `FenceDesc::shared` return `FE_UNSUPPORTED` (follow-up below).
+  - Vulkan enables `separateDepthStencilLayouts` when the device has it and records it in
+    `vulkan::DeviceDesc`. Without it, a one-plane barrier is reported and widened to both aspects.
+- **Fixes found on the way:**
+  - Vulkan queue waits on submitted semaphores used `eTopOfPipe`, so nothing waited. They now use
+    `eAllCommands`.
+  - A Vulkan transition to `ResourceStates::Unknown` is a memory barrier, not a layout transition to
+    `UNDEFINED`: VUID-VkImageMemoryBarrier2-newLayout-01198.
+  - Vulkan `bindImageMemory`/`bindBufferMemory` catch `vk::SystemError` and return false.
+- **Design correction (6.3):** on the enhanced path, `LAYOUT_DEPTH_STENCIL_READ` does not admit
+  `ACCESS_SHADER_RESOURCE`. The Agility SDK 1.619 debug layer rejected it, and the specification's
+  table agrees.
+  - Combined read sets now map to `GENERIC_READ`, or to `DIRECT_QUEUE_GENERIC_READ` once a depth,
+    resolve or shading-rate read joins.
+  - A texture state that combines a UAV or write access with another access has no layout on every
+    queue. D3D12 `barriers` refuses it on both paths (`FE_INVALID_ARGS`).
+  - nvrhi's automatic enhanced path uses the same resolver. It used to assert on
+    `DepthRead | ShaderResource`, and in Release it kept the first layout.
+  - Design 6.3 and ADR 0015 were updated to match.
+- **Item 6, CUDA stream memory operations**, on an RTX 4050 Laptop GPU with driver 13.04 under WDDM:
+  - `CAN_USE_64_BIT_STREAM_MEM_OPS` = 1, `CAN_USE_STREAM_WAIT_VALUE_NOR` = 1,
+    `TIMELINE_SEMAPHORE_INTEROP_SUPPORTED` = 1.
+  - `cuStreamWriteValue64` and `cuStreamWaitValue64` each work, and a wait on host-pinned memory is
+    released by a CPU write.
+  - A GPU wait enqueued *before* the GPU write that satisfies it, on another non-blocking stream,
+    deadlocks: the writing stream never completes.
+  - The event ring stays, as the design chose, and the rule "a GPU wait is enqueued after its signal"
+    stands for any future memory-op variant.
+- **Enhanced barriers on this machine:** Windows 10's in-box D3D12 has none, and the worktree build has
+  `NVRHI_WITH_RTXMU=ON`, which turns them off. The enhanced path was therefore verified in a standalone
+  nvrhi build (D3D12 only, RTXMU off) running the same test executable with the Agility SDK 1.619 in
+  `.\D3D12\` (`NVRHI_TEST_AGILITY_SDK_VERSION=619`). It reported `enhanced barriers: 1`.
+
 ## Verification results
 
-*Filled in as steps complete.*
+**P1.1 (2026-11-05)**, on the NVIDIA RTX 4050 Laptop GPU, Windows 10 19045:
+
+| Run | Layers confirmed | Result |
+| --- | --- | --- |
+| `explicit_barriers_d3d12`, Debug, legacy barriers | debug layer (`ID3D12InfoQueue`) and GPU-based validation | PASS, no messages |
+| the same tests, standalone Debug nvrhi, Agility SDK 1.619, `enhanced barriers: 1` | debug layer and GPU-based validation, live `ID3D12InfoQueue1` messages | PASS after the 6.3 correction |
+| `explicit_barriers_vulkan`, Debug | `VK_LAYER_KHRONOS_validation` enabled, `VK_LAYER_VALIDATE_SYNC=1`; the deliberate hazard reported as `SYNC-HAZARD-WRITE-AFTER-WRITE` | PASS |
+| `explicit_barriers_d3d11`, Debug | debug device | PASS |
+| `explicit_barriers_cuda`, Debug, under Compute Sanitizer 12.9 | memcheck (with leak check), synccheck, racecheck | PASS, 0 errors, 0 bytes leaked |
+| full Debug build | — | 1069 of 1074 steps; the 5 left are WaveWorks, which fails in every Debug build (known issues) |
+| ctest, Debug | — | 49/49 (the 45 of the baseline and the four `explicit_barriers_*`) |
+| full Release build | — | 828 steps, 76 executables and libraries linked |
+| ctest, Release | — | 49/49, including `nvrhi_abi_lint`, `nvrhi_abi_lint_selftest`, `nvrhi_header_hygiene`, `cuda_*` and `cuda_interop-*` |
 
 ## Known issues and follow-ups
 
-*Filled in as found.*
+- **WaveWorks does not build in Debug** (ethereal-samples, since `01b4945`, before this plan). The
+  size assertions in `Wind_Waves_Simulation_Manager_Compute_Impl.h` and `..._CPU_Impl.h` assume
+  Release `std::vector`, which is 24 bytes; Debug's is 32. Pass 1 leaves samples alone; fix it in pass 2
+  or on its own when asked.
+- **CUDA shared fences** (`FenceDesc::shared`) return `FE_UNSUPPORTED`. The device reports
+  `TIMELINE_SEMAPHORE_INTEROP_SUPPORTED`, so an external-semaphore implementation is possible. It is
+  needed only by an interop graph boundary (design 14.8 item 18).
+- **Vulkan render targets with per-aspect layouts.** With `separateDepthStencilLayouts`, a depth plane
+  in a read layout and a stencil plane in an attachment layout need the attachment's layout to be
+  `eDepthReadOnlyStencilAttachmentOptimal`. nvrhi's rendering setup derives one layout per attachment
+  from the tracked state. Address it in P1.4 if the executor's Native mode produces that split, or have
+  the graph keep both planes together for attachments.
+- **Enhanced barriers in the worktree build** need `NVRHI_WITH_RTXMU=OFF` and the Agility SDK. Until
+  the aggregate build can turn RTXMU off, the enhanced path is verified with the standalone nvrhi build.
