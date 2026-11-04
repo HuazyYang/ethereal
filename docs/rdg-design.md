@@ -1,8 +1,13 @@
 # Render graph (RDG) for donut: design
 
-- Status: Draft
-- Date: 2026-10-21
+- Status: Accepted (2026-11-05)
+- Date: 2026-10-21; rebased onto the ethereal-dev RHI on 2026-11-01
 - Decision record: [ADR 0003](adr/0003-render-graph-for-donut.md)
+- Plan: [`plans/2026-11-05-render-graph.md`](plans/2026-11-05-render-graph.md)
+- RHI baseline: ethereal-nvrhi `ethereal-dev` at `123d105`, donut `ethereal-dev` at `4f4b31c`, samples
+  `main` at `37ac258` (aggregate `main` at `264ac18`). That baseline includes the CUDA/OptiX backend, the
+  offline Slang shader containers and the per-backend graphics factories (nvrhi ADRs 0011-0014). The
+  earlier `slang-next` baseline is retired.
 - Supersedes: `ethereal-donut/doc/RdgDesign.md` (2026-10-12) and
   [`plans/2026-10-04-framegraph.md`](plans/2026-10-04-framegraph.md). Nothing from the unmerged
   `framegraph` branches is reused; those branches are no longer in the local repositories.
@@ -15,9 +20,9 @@ against. Scheduling heuristics beyond async-compute placement and read grouping 
 
 | # | Requirement | What it means here |
 | --- | --- | --- |
-| R1 | No DSL, no DSL parser or compiler | C++ is the only authoring surface. Graphs are built each frame through a builder interface. No RPSL, no graph files, no code generation. |
+| R1 | No DSL, no DSL parser or compiler | C++ is the only authoring surface. Graphs, their resources and their passes are recorded each frame through `IRenderGraph`. No RPSL, no graph files, no code generation. |
 | R2 | Outstanding at resource state transitions and state overlapping | Per-subresource (plane, mip, slice) state tracking. Merging of compatible read states across whole read epochs. UAV ordering control, split barriers, aliasing barriers with first-use initialisation, discard inference, queue-capability-aware transition placement. A device-free verifier proves every plan correct. Section 6 is the core of the design. |
-| R3 | The slang-next RHI; four backends: CUDA, D3D11, D3D12, Vulkan | Build on ethereal-nvrhi as it stands on `slang-next`: the IDevice/ICommandList model, `GraphicsAPI::CUDA`, `IShaderProgram` artifacts, interop. One compiler for all four. Per-backend behaviour comes from a capability profile and a lowering layer, never from `if (api == ...)` in the compiler. |
+| R3 | The ethereal-dev RHI; four backends: CUDA, D3D11, D3D12, Vulkan | Build on ethereal-nvrhi as it stands on `ethereal-dev`: the IDevice/ICommandList model, the per-backend graphics factories and `IGraphicsSwapChain`, the CUDA/OptiX backend, offline Slang containers with reflection on `IShader`, and `IInteropDevice`. One compiler for all four. Per-backend behaviour comes from a capability profile and a lowering layer, never from `if (api == ...)` in the compiler. |
 | R4 | Generic build, compile and execute | The graph is part of `donut_render`, as the `RenderGraph*` files in the `render/` folder. Graph code names no pass and includes nothing from the rest of `donut/render` or `donut/engine`. Every donut pass derives from one base, `IGpuPass`, and adds itself to a graph. The dependency runs from the passes to the graph, never back. |
 | R5 | Performance oriented | Every mechanism is chosen and gated by its CPU and GPU cost. A cached plan costs almost nothing per frame, and steady state creates no GPU objects and makes no heap allocations. The plan emits the fewest, narrowest barriers that are correct. Each implementation step has measured exit budgets (section 10). |
 
@@ -30,19 +35,41 @@ Non-goals:
 
 ## 2. Facts the design is built on
 
-### 2.1 The slang-next RHI
+### 2.1 The ethereal-dev RHI
 
-Verified against `ethereal-nvrhi` on `slang-next` (header version 30).
+Verified on 2026-11-01 against `ethereal-nvrhi` on `ethereal-dev` (`123d105`, header version 28).
 
 **Objects**
 
 - Resources derive directly from `IRHIObject`: `ITexture`, `IBuffer`, `IStagingTexture`,
   `ISamplerFeedbackTexture`, `rt::IAccelStruct` and `rt::IOpacityMicromap`. There is no common
   resource base.
-- `d3d12::ICommandList` derives from `nvrhi::ICommandList`.
+- Derived backend interfaces: `d3d12::ICommandList` and `cuda::ICommandList` derive from
+  `nvrhi::ICommandList`; `d3d12::IDevice`, `vulkan::IDevice` and `cuda::IDevice` derive from
+  `nvrhi::IDevice`. The validation layer wraps both (`CommandListWrapper`, and `DeviceWrapper` with its
+  `InteropDeviceWrapper` mixin).
 - Descriptor debug names are `nvrhi::string` (an EASTL-style string with inline storage).
-- Results are `FRESULT` codes, among them `FS_OK`, `FE_INVALID_ARGS`, `FE_WAIT_TIMEOUT` and
-  `FE_UNSUPPORTED`.
+- Results are `FRESULT` codes, among them `FS_OK`, `FE_INVALID_ARGS`, `FE_NOT_FOUND`,
+  `FE_WAIT_TIMEOUT`, `FE_UNSUPPORTED` and `FE_OUT_OF_DATE` (a swap chain needs a resize).
+
+**Devices, swap chains and the version policy** (nvrhi ADRs 0012 and 0014)
+
+- Devices come from one factory per backend: `<backend>::createGraphicsFactory`, then
+  `createDevice` (wraps native objects the caller made) or `createDeviceOnAdapter` (creates them
+  inside). donut's `DeviceManager` keeps only the window and the frame loop.
+- `nvrhi::IGraphicsSwapChain` owns the back buffers. Its `beginFrame` differs per backend:
+  - D3D12 waits on the CPU for the back buffer's frame fence;
+  - Vulkan acquires the next image and *queues* the acquire-semaphore wait on the graphics queue
+    (`vulkan::IDevice::queueWaitForSemaphore`), so the wait rides on the next graphics submission;
+  - CUDA has no window: it rotates CUDA-texture back buffers and waits for the reused slot's stream
+    work.
+- Back-buffer textures are `keepInitialState` with initial state `Present` (`d3d12-swapchain.cpp:232`,
+  `vulkan-swapchain.cpp:380`).
+- **Interfaces change in place.** `com-interface-abi.md` §3.4 was amended on 2026-10-22: an interface
+  may gain, lose or change virtual functions, and struct layouts may change, without a derived
+  `IFoo1` and without bumping `c_HeaderVersion` (28). nvrhi and its consumers are built from one tree;
+  the installed CMake package is `ExactVersion`. Every other rule (R1-R5, header hygiene) is still
+  enforced by `nvrhi_abi_lint`, `nvrhi_header_hygiene` and `nvrhi_header_tus`.
 
 **Subresource sets**
 
@@ -76,6 +103,11 @@ Verified against `ethereal-nvrhi` on `slang-next` (header version 30).
   - Queue families are always `IGNORED`, and sharing is `EXCLUSIVE`.
 - **D3D11 and CUDA** implement every state call as a no-op. CUDA orders work by stream submission.
   D3D11 maps the UAV-barrier toggles to NVAPI UAV overlap.
+- **CUDA command lists are deferred** (nvrhi ADR 0011). A list records plain records into a byte
+  stream, resolving bindings and uploads while it records. `executeCommandLists` replays them on the
+  queue's `CUstream` and records one `CUevent` per submission, which `queueGetCompletedInstance` and
+  `runGarbageCollection` retire. Each queue loads its own `CUmodule`, so two queues never race on a
+  module's `SLANG_globalParams`.
 - **Binding states.** On D3D12 a binding requires the shader-resource state that matches its
   visibility (pixel or non-pixel). On Vulkan nvrhi binds sampled depth as
   `ShaderResource|DepthRead`.
@@ -90,17 +122,22 @@ Verified against `ethereal-nvrhi` on `slang-next` (header version 30).
   - Vulkan uses a timeline semaphore per queue (also reachable through `vulkan::IDevice::queueWaitForSemaphore`).
   - CUDA uses one non-blocking stream per queue and waits with `cuStreamWaitEvent`.
   - D3D11 has one queue, so the call is a no-op.
-- `IEventQuery` is a CPU-side completion query.
-- The interop headers add `IExternalFence`, plus queue-level `waitFence`/`signalFence` on
-  `IGraphicsInteropDevice`.
+- Vulkan also has *queued* semaphore calls, `queueWaitForSemaphore` and `queueSignalSemaphore`: the
+  wait is attached to the next submission on that queue, not to a submission the caller names. The
+  swap chain's acquire and the Vulkan interop waits use them.
+- `IEventQuery` is a CPU-side completion query. There is no timeline fence object in the public API;
+  the backends keep their fences and semaphores internal.
 
 **Memory**
 
 - `IHeap` and `bind*Memory` work on D3D12 and Vulkan only (`Feature::VirtualResources`). A resource
   binds exactly once.
-- Vulkan heaps ignore `memoryTypeBits`. D3D11 and CUDA return unsupported.
+- Vulkan heaps ignore `memoryTypeBits` (`vulkan-device.cpp:827`). D3D11 and CUDA return
+  unsupported.
+- On D3D12 heap tier 1, render-target and depth heaps are `ALLOW_ONLY_RT_DS_TEXTURES`
+  (`d3d12-device.cpp:1255`).
 - Vulkan `bindImageMemory` and `bindBufferMemory` ignore the bind result and always report success
-  (`vulkan-texture.cpp:412`, `vulkan-buffer.cpp:689`).
+  (`vulkan-texture.cpp:408`, `vulkan-buffer.cpp:673`).
 - nvrhi cannot report which heap, offset and size a virtual resource is bound to.
 
 **Render targets**
@@ -108,16 +145,43 @@ Verified against `ethereal-nvrhi` on `slang-next` (header version 30).
 - Framebuffers have no load/store ops; Vulkan hard-codes LOAD/STORE. nvrhi has no render-pass
   object.
 
-**CUDA, reflection and interop**
+**CUDA** (nvrhi ADR 0011)
 
-- CUDA has no raster pipelines or framebuffers and no depth clears. It rejects normalised-format
-  UAVs.
-- `IShaderProgram` reflection distinguishes SRV from UAV slots.
-- Interop acquire/release already drives the tracker and Vulkan external queue transitions.
+- `FE_UNSUPPORTED`: graphics and meshlet pipelines, framebuffers, heaps and virtual resources,
+  bindless layouts, sampler feedback and opacity micromaps. `clearDepthStencilTexture` reports an
+  error.
+- Formats: a writable texture (a surface) needs `isUAV` and an uncompressed format; there are no
+  3-component or depth-stencil formats.
+- Compute, copies and OptiX ray tracing work. An indirect dispatch reads its group counts back on
+  the host before it launches, so it stalls.
+- `cuda::ICommandList::enqueueNativeWork` hands the stream to application code during replay.
+
+**Shader reflection** (nvrhi ADR 0012)
+
+- Shaders built by ShaderTool's container mode (`ethereal_compile_shader_containers`) carry offline
+  Slang reflection. `IShader::getReflection` and `IShaderLibrary::getReflection` return it, or `nullptr`
+  for plain bytecode. There is no `IShaderProgram` and no `slang.dll` at run time.
+- Each parameter reports its HLSL register class, space and slot (on CUDA as well, through a second
+  HLSL layout), so SRV and UAV slots can be told apart.
+- Limits: a resource nested in a parameter block or struct gets no register, there is no "no
+  binding" marker, and Vulkan reports the shifted bindings (t 0, s 128, b 256, u 384).
+- Today only the GVDB samples build containers. donut's `ShaderFactory` loads plain bytecode, so
+  donut's own passes have no reflection.
+
+**Interop** (nvrhi ADR 0013)
+
+- A CUDA device paired with a graphics device implements `IInteropDevice` (reached by
+  QueryInterface). It imports graphics buffers and textures (every mip and slice) into CUDA objects
+  and orders the two devices with `computeQueueWaitForGraphicsQueue` and
+  `graphicsQueueWaitForComputeQueue`.
+- D3D12 uses a shared `ID3D12Fence` and Vulkan an exportable timeline semaphore, imported into CUDA as
+  external semaphores. On Vulkan the graphics-side wait is queued, as above.
+- D3D11 interop is unsupported. The Vulkan import refuses layered textures with more than one mip.
+- Synchronisation is explicit; nothing touches a resource state tracker.
 
 **Earlier work.** The deprecated `framegraph` branches (archived 2026-10-14, evaluated in
 [`rdg-legacy-evaluation.md`](rdg-legacy-evaluation.md)) had already added the following to nvrhi.
-None of it is on slang-next:
+None of it is on ethereal-dev:
 - aliasing barriers through a derived `ICommandList1`;
 - heap-binding queries (`ITexture1/IBuffer1::queryHeapBinding`);
 - `CONCURRENT` sharing across Vulkan queue families;
@@ -140,7 +204,8 @@ Section 8 keeps the aliasing and heap-binding ideas, but not the derived interfa
   `AddRenderPassToBack`, `RemoveRenderPass`).
 - On each one it calls `Render(framebuffer)`, `Animate`, the resize callbacks and the keyboard,
   mouse and joystick handlers.
-- `ApplicationBase` and `ImGuiRenderPass` derive from it, and 42 files in ethereal-samples use it.
+- `ApplicationBase` and `ImGuiRenderPass` derive from it. 43 files in ethereal-samples and 5 in
+  donut name it or its `DeviceManager` members.
 
 **Barriers.** Passes rely on nvrhi automatic barriers and on textures created with
 `keepInitialState=true`. Only DLSS records barriers itself.
@@ -171,17 +236,24 @@ Section 8 keeps the aliasing and heap-binding ideas, but not the derived interfa
 
 **Best fit.** DeferredLightingPass, whose inputs are a per-call `Inputs` struct.
 
-**Swap chain.** Swap-chain textures are `keepInitialState` with initial state Present. Declaring
-their state to a graph once cost a device loss; the import contract in 5.2 makes that impossible.
+**Swap chain.** `DeviceManager` holds an `nvrhi::IGraphicsSwapChain` (`GetSwapChain`) and calls its
+`beginFrame` from `BeginFrame`. Back-buffer textures are `keepInitialState` with initial state
+Present (2.1). Declaring their state to a graph once cost a device loss; the import contract in 5.2
+makes that impossible. On Vulkan the acquire wait is queued on the graphics queue, so only a
+graphics-queue submission waits for the image (6.8).
 
 **Build.** `donut_render` collects `include/donut/render/*.h` and `src/render/*.cpp` with a
 non-recursive `file(GLOB)` in `donut-render.cmake`. It links `donut_core` and `donut_engine`.
 
-**Vulkan queue families.** `DeviceManager_VK::findQueueFamilies` never resets its family indices
-between physical devices (`DeviceManager_VK.cpp:585`, initialised once at
-`DeviceManager_VK.h:232-235`). On a machine with more than one GPU, compute lists can come from a
-transfer-only family. This caused a device loss on the legacy branches, and the fix was never
-merged.
+**Vulkan queue families.** Device creation moved into nvrhi's Vulkan factory, whose
+`GraphicsFactory::findQueueFamilies` starts from fresh indices for every physical device
+(`vulkan-factory.cpp:473`). The legacy's device loss, where compute lists came from a transfer-only
+family on a machine with more than one GPU, cannot happen any more. donut's `DeviceManager_VK.cpp` is
+down to window and frame-loop code.
+
+**CUDA in donut.** `DeviceManager` creates D3D11, D3D12 and Vulkan devices only. CUDA work in this
+tree (the GVDB samples) creates its `cuda::IDevice` through the CUDA factory, pairs it with the
+graphics device, and presents through `IInteropDevice` (`sample-utils/ScreenPresenter.cpp`).
 
 **Thread safety.** `BindingCache` creates missed binding sets while it holds its exclusive lock.
 `CommonRenderPasses::BlitTexture` writes its pipeline cache without any lock
@@ -214,17 +286,17 @@ merged.
         ▼
  donut_render  (include/donut/render, src/render)
  ├─ RenderGraph*  (generic)
- │    IRenderGraphBuilder ─► IRenderGraph (data) ─► IRenderGraphCompiler ─► ICompiledRenderGraph (data)
- │                                                                                │
- │                                                    IRenderGraphExecutor ◄──────┘
- │    IResourceRegistry (data, persists across frames)      BackendProfile + lowering
- │    IGpuPass, IPassBuilder, IPassContext
+ │    IResourceRegistry (persists across frames)
+ │        ▲ bound to
+ │    IRenderGraph (recorded per frame) ── Compile ─► ICompiledRenderGraph (data, cached)
+ │        └──────────────────────────────── Execute(plan) ◄──┘
+ │    IGpuPass, ISetupContext, IPrepareContext, IPassContext    BackendProfile + lowering
  │        ▲ derive from IGpuPass, call AddToGraph
  └─ passes: GBufferFillPass, DeferredLightingPass, ForwardShadingPass, DepthPass, SsaoPass,
             BloomPass, TemporalAntiAliasingPass, ToneMappingPass, SkyPass, ...
         │
         ▼
- ethereal-nvrhi (slang-next) + IResource, SubresourceRegion, ICommandList::barriers, IFence, IDevice::submit (section 8)
+ ethereal-nvrhi (ethereal-dev) + IResource, SubresourceRegion, ICommandList::barriers, IFence, IDevice::submit (section 8)
    D3D12  |  Vulkan  |  D3D11  |  CUDA
 ```
 
@@ -237,7 +309,8 @@ no subfolder and no adapter layer: the passes themselves become graph passes (se
 | --- | --- |
 | `include/donut/render/RenderGraph.h` | public interfaces (section 12), including `IGpuPass` |
 | `include/donut/render/RenderGraphLambdaPass.h` | header-only lambda helper (12.1) |
-| `src/render/RenderGraphBuilder.cpp` | builder, frame arena, structural hash |
+| `include/donut/render/RenderGraphFrameData.h` | header-only typed blackboard (12.2) |
+| `src/render/RenderGraph.cpp` | graph recording (resources, passes, the setup context), frame arena, structural hash |
 | `src/render/RenderGraphCompiler.cpp` | phases 1-5 and 7 of section 7 |
 | `src/render/RenderGraphTransitions.cpp` | phase 6: the walk of section 6, lattices |
 | `src/render/RenderGraphExecutor.cpp` | executor and lowering (9.1) |
@@ -263,12 +336,12 @@ The non-recursive `file(GLOB)` in `donut-render.cmake` picks these up with no bu
    - No class, struct or union is passed or returned by value through a virtual function (nvrhi
      `doc/com-interface-abi.md`, rule R1). Structs go by `const&`; ids are enums (5.1).
    - No two virtual functions share a name (rule R3).
-   - Once released, an interface is never changed. Additions go into a derived `IFoo1 : IFoo` with its
-     own IID.
-   - `abi_lint --api-all` and the header-hygiene test cover `RenderGraph.h`.
+   - Interfaces evolve in place, as nvrhi's do since its §3.4 amendment (2.1): donut, nvrhi and the
+     samples are always rebuilt together, so there is no `IFoo1 : IFoo` and no version constant.
+   - `abi_lint --api-all` (nvrhi's `nvrhi_abi_lint` script) and the header-hygiene test cover
+     `RenderGraph.h`.
 
    Pass headers follow ordinary donut conventions.
-4. **Data and operations are separate objects** (section 4).
 
 ### 3.3 Names
 
@@ -298,26 +371,32 @@ back. That is what "layer" means in application frameworks.
 | `app::ImGuiRenderPass` | `app::ImGuiLayer` |
 
 - Alternatives considered: `IFrameLayer`, `IViewLayer`, `IAppComponent`.
-- No alias is kept. The rename lands in one commit across donut and the 42 sample files, so donut
-  has only one "render pass" concept left, the GPU one.
+- No alias is kept. The rename lands in one commit per repository, across the 5 donut and 43 sample
+  files (2.2), so donut has only one "render pass" concept left, the GPU one.
 
-## 4. Object model: data and operations
+## 4. Object model
 
 | Object | Kind | Lifetime | Responsibility |
 | --- | --- | --- | --- |
-| `IRenderGraphBuilder` | operation | reused every frame | Records resources and passes into a frame arena; `Finish` freezes them into an `IRenderGraph`. |
-| `IRenderGraph` | data | one frame | Immutable description: resources, passes, accesses, imports, pass objects and their per-use data. Carries its structural hash. |
-| `IRenderGraphCompiler` | operation | long | `Compile(graph, profile, options) → ICompiledRenderGraph`. Pure: no device calls. Runs headless in unit tests. |
+| `IRenderGraph` | records, compiles and executes | long, bound to one registry; `Reset` starts each frame | The frame's resources (created, imported, persistent, history, extracted), passes and accesses, in a frame arena. `AddPass` records a pass, and the pass declares its accesses through an `ISetupContext` in `Setup`. `Compile(profile, options) → ICompiledRenderGraph` freezes the graph until the next `Reset`; it makes no device calls and runs headless in unit tests. `Execute(plan)` instantiates plan memory through the registry, records command lists (optionally in parallel) and submits them. Carries its structural hash. |
 | `ICompiledRenderGraph` | data | cached across frames | Holds, among other things: <br>• schedule and segments<br>• lifetimes and memory plan<br>• prebuilt `ResourceBarrier` arrays<br>• fence operations<br>• diagnostics |
-| `IRenderGraphExecutor` | operation | long | Instantiates plan memory through the registry, records command lists (optionally in parallel) and submits them. |
 | `IResourceRegistry` | data | long, one per view or pipeline | Holds, among other things: <br>• persistent resources and their cross-frame states<br>• the plan cache<br>• transient heaps and pools<br>• framebuffer and binding caches<br>• per-queue fences<br>• retirement |
-| `IGpuPass` | operation, pass-specific | long, owned by its creator | The base of every donut pass. `Setup` declares the accesses of one use, `Prepare` creates pipelines and uploads serially, and `Execute` records the use (12, 13.1). One pass object can be added several times per frame, each use with its own arena data. |
+| `IGpuPass` | operation, pass-specific | long, owned by its creator | The base of every donut pass. `Setup` declares the accesses of one use, `Prepare` creates pipelines and uploads serially, and `Execute` records the use (12, 13.1). One pass object can be added several times per frame, each use with its own arena data (`void* data`). |
 
-**Why compile is separate from execute:** it enables the device-free verifier (11.1) and plan
-caching (7.7).
+**Why compile is separate from execute:** the two are separate calls with a plan object between
+them, which enables the device-free verifier (11.1) and plan caching (7.7). They are methods of the
+graph rather than separate compiler and executor objects, as in Filament's `compile()` and
+`execute()` (14.11). The compiler and the executor stay separate concrete classes inside
+`src/render`.
 
 **Why the registry is separate from the graph:** a graph is rebuilt every frame, while history,
 heaps and caches survive.
+
+**Why there is no builder:** the graph is the object that holds what is recorded, so it records it
+itself; a pass declares its accesses through a setup context valid only during its `Setup` (14.9).
+`Compile` still makes no device calls, and a registry created without a device
+(`CreateResourceRegistry(nullptr, ...)`) supports recording and compiling only; `Execute` then
+returns `FE_UNSUPPORTED`. The device-free verifier and the unit tests are unaffected.
 
 **Hot paths are concrete classes.** COM interfaces are used at module boundaries only. Inside
 `src/render/RenderGraph*.cpp` the compiler and executor are plain C++ over concrete classes, with no
@@ -327,11 +406,28 @@ virtual calls in their inner loops (10.1).
 
 ### 5.1 Resource ids and versions
 
-`ResourceId` names a texture or a buffer in one graph. It is a 64-bit enum,
+`ResourceId` names a texture or a buffer in one graph (5.2). It is a 64-bit enum,
 `enum class ResourceId : uint64_t`, holding a 32-bit resource index in the low half and a 32-bit
-version in the high half.
+version in the high half. The index is the resource's position in the graph's resource table for
+the frame, which `Reset` clears.
 - It is an enum rather than a struct, so it may cross virtual calls by value under nvrhi's ABI rule
   R1 (3.2).
+- **Where the layout comes from.**
+  - The index-low, version-high packing follows Unity SRP's `ResourceHandle`
+    (`RenderGraphResources.cs`). Unity packs a 16-bit index and a 15-bit version into one 32-bit
+    word, and uses the top bit to mark a handle as not versioned.
+  - Filament's `FrameGraphHandle` keeps the index and the version as separate fields. Its handle is
+    valid only while its version equals the resource slot's current one, and a write increments it
+    (`createNewVersion`). The stale-id rule below is the same check.
+  - The legacy framegraph used `enum class ResourceId : uint16_t` with no version bits: each id named
+    one version, and a table mapped it back to its resource. This design keeps the legacy's enum
+    form, for R1, but packs the version into the id instead.
+  - Both halves are widened to 32 bits. Unity's 16 and 15 bits cap a graph at 65,535 resources
+    and 32,767 writes per resource.
+  - Unity also keeps a separate per-execution validity word, so that a handle left in pooled pass
+    data from an earlier frame is rejected. Here the version carries that check (below): the graph
+    is reused across frames and reuses indices after every `Reset`, so an id that a caller or a pass
+    member keeps past `Reset` would otherwise look valid.
 - The inline helpers `MakeResourceId`, `GetResourceIndex` and `GetResourceVersion` pack and unpack it.
 - `InvalidResourceId` (all bits set) is the invalid value.
 
@@ -339,8 +435,13 @@ version in the high half.
   texture-only access (a render target, a subresource range other than all) on a buffer is a
   validation error, and `IPassContext::GetTexture` returns `nullptr` for a buffer.
 - **Writes create versions.** Every write declaration returns a new version.
+- **Versions never repeat across frames.** A resource's first version, and every later one, comes
+  from one counter in the graph that `Reset` never clears. Index *i* is reused every frame, but the
+  version of *i* in frame N+1 can never equal a version of *i* from frame N.
 - **Stale ids are rejected.** Using any version other than the current one is a validation error
-  naming both passes.
+  naming both passes. That covers an id kept from an earlier frame: its index may be
+  valid again, but its version is not. The counter wraps after 2^32 writes, and only an id kept that
+  long whose version then matches exactly would escape the check.
 - **No cycles.** Because every write creates a version, declaration order is always a valid
   topological order, so a graph cannot contain a cycle.
 
@@ -351,10 +452,17 @@ Hazards are computed per subresource, not per version (6.2).
 | Kind | Created by | Memory | Entry state | Exit state | Aliasable |
 | --- | --- | --- | --- | --- | --- |
 | Transient | `CreateTexture/Buffer` | Registry heap or pool | Undefined (discard) | None | Yes, single queue only (7.4) |
+| Transient, pass-local | `ISetupContext::CreateTransientTexture/Buffer`, in `Setup` | Registry heap or pool; the lifetime is that one pass | Undefined (discard) | None | Yes |
 | Imported, tracked | `ImportTexture/Buffer(resource, entry, exit)` | Caller | Declared `entry` | Declared `exit`, reached at last use | No |
 | Imported, host-kept | `ImportHostKeptTexture(tex)` for `keepInitialState` resources such as the swap chain | Caller | `desc.initialState` | `desc.initialState` | No |
-| Persistent | `GetPersistentTexture/Buffer(name, desc)`, `GetHistoryPair` | Registry, dedicated | Exit state of the previous frame, recorded in the registry | Left in its last-use state and recorded; no restore transition | No |
+| Persistent | `GetPersistentTexture/Buffer(name, desc)`, `GetHistory`/`GetHistoryPair` | Registry, dedicated | Exit state of the previous frame, recorded in the registry | Left in its last-use state and recorded; no restore transition | No |
 | Extracted | `Extract(transient)` | Registry pool; the lifetime is extended to the end of the graph | as transient | Declared exit | No. It returns to the pool when the caller releases it and the frame retires |
+
+Every "Created by" call is an `IRenderGraph` method (12), except pass-local transients, which come from
+the setup context of the pass that owns them. It declares the resource for the current
+frame, and the id is valid until the graph's next `Reset`. Declaring creates no GPU object. A
+persistent resource or history is looked up by name in the graph's registry, which keeps it and
+its cross-frame states; the graph hands out a new id for it each frame.
 
 - **Host-kept imports.** nvrhi restores a `keepInitialState` texture at `close()`, so the graph must
   never declare any other state for it. The compiler rejects tracked imports of such textures.
@@ -366,14 +474,22 @@ Hazards are computed per subresource, not per version (6.2).
   - End states are recorded per subresource and keyed by registry id and physical resource, never by
     pointer. The legacy keyed them by pointer and needed a keep-alive against address reuse.
   - The hand-off into the next frame follows 6.12.
-- **History pairs.** `GetHistoryPair` returns `{current, previous}`, backed by two physical textures.
-  - **Rotation.** The two textures swap roles every frame. The plan stores both pointers, and the
-    executor picks the current one by frame parity: O(number of pairs) per frame, with no recompile.
-  - **Usage.** Both textures are created with the union of the usage flags declared on either role,
-    so swapping never needs a different object.
-  - **New allocations.** `IsNewAllocation(id)` is true only in the first frame after the pair was
-    (re)allocated, which happens when it is first created or when its description changes. It
-    replaces TAA's `feedbackIsValid` and the exposure-buffer reset logic.
+- **History.** `GetHistory(name, desc, layerCount, ids)` returns `layerCount` ids (2 to
+  `c_MaxHistoryLayers`, which is 8), backed by as many physical textures. After RPS's temporal
+  resources, it generalises the pair that TAA needs to the longer windows that temporal accumulation
+  and denoisers use. `GetHistoryPair(name, desc, &current, &previous)` is an inline wrapper for the
+  two-layer case.
+  - **Layers.** `ids[0]` is the current frame's layer and the only one that may be written. `ids[k]`
+    is the layer written *k* frames ago, and is read-only: a write to it is a validation error.
+  - **Rotation.** Layer *k* of frame *f* is physical texture `(f - k) mod layerCount`. The plan stores
+    every pointer, and the executor picks them by frame index: O(total history layers) per frame,
+    with no recompile.
+  - **Usage.** All of a history's textures are created with the union of the usage flags declared on
+    any layer, so rotating never needs a different object.
+  - **New allocations.** `IsNewAllocation(ids[k])` is true while layer *k* has not been written
+    since the history was (re)allocated, that is, for the first *k* frames after it was first
+    created or its description changed. For a pair this is the first frame only. It replaces TAA's
+    `feedbackIsValid` and the exposure-buffer reset logic.
   - **States** are recorded per physical texture, so the rotation never confuses them.
 
 ### 5.3 Subresources and planes
@@ -402,15 +518,15 @@ The core of the design has three layers:
 
 ```
 Access (bit flags)
-  reads : VertexBuffer IndexBuffer IndirectArgs ConstantBuffer ShaderRead StorageRead
+  reads : VertexBuffer IndexBuffer IndirectArgs ConstantBuffer ShaderRead UAVRead
           ColorTargetRead(blend) DepthRead StencilRead CopySource ResolveSource
           ShadingRateRead AccelStructRead AccelStructBuildInput Present HostRead
-  writes: StorageWrite ColorTarget DepthWrite StencilWrite CopyDest ResolveDest
+  writes: UAVWrite ColorTarget DepthWrite StencilWrite CopyDest ResolveDest
           AccelStructWrite
 AccessFlags
   Clear          the pass initialises the range with a clear as its first operation
   FullWrite      the pass writes every element of the range (makes a discard-before legal)
-  RelaxedOrder   consecutive relaxed StorageWrite accesses need no UAV barrier between them
+  RelaxedOrder   consecutive relaxed UAVWrite accesses need no UAV barrier between them
   Preserve       never infer a discard for this access
 ShaderStages     Vertex | Hull | Domain | Geometry | Pixel | Compute | RayTracing | Mesh | Amplification
 ```
@@ -418,7 +534,7 @@ ShaderStages     Vertex | Hull | Domain | Geometry | Pixel | Compute | RayTracin
 When stages are omitted, they come from the pass type. Narrower stages give narrower sync scopes on
 Vulkan and on D3D12 enhanced barriers.
 
-`StorageRead` (UAV read-only) counts as a read for hazards. On D3D12, however, it cannot share a
+`UAVRead` (UAV read-only) counts as a read for hazards. On D3D12, however, it cannot share a
 state with ShaderRead, which is what 6.3 resolves.
 
 ### 6.2 Per-subresource state map
@@ -447,7 +563,7 @@ After each pass, adjacent intervals whose `SubresourceRangeState` is equal are c
 **Overlapping ranges within one pass.** The declared ranges of one resource may overlap only in
 these combinations:
 - DepthRead with ShaderRead;
-- StorageRead with StorageWrite;
+- UAVRead with UAVWrite;
 - ColorTarget with ColorTargetRead.
 
 Any other overlap is a compile error naming the pass and the range. Disjoint ranges in one pass are
@@ -473,7 +589,7 @@ writes. Before choosing a state, the compiler looks ahead over the whole epoch:
 | --- | --- | --- | --- |
 | depth test (read-only) + compute sampling + pixel sampling | `DEPTH_READ \| PIXEL_SHADER_RESOURCE \| NON_PIXEL_SHADER_RESOURCE` | layout `DEPTH_STENCIL_READ`, access `DEPTH_STENCIL_READ \| SHADER_RESOURCE` | `DEPTH_STENCIL_READ_ONLY_OPTIMAL` |
 | sampling + copy source | `*_SHADER_RESOURCE \| COPY_SOURCE` | layout `GENERIC_READ` | `GENERAL` (cost) or two groups, by `LatticePolicy` |
-| sampling + StorageRead | incompatible: two groups | layout `UNORDERED_ACCESS`, access `SHADER_RESOURCE \| UNORDERED_ACCESS` | `GENERAL` |
+| sampling + UAVRead | incompatible: two groups | layout `UNORDERED_ACCESS`, access `SHADER_RESOURCE \| UNORDERED_ACCESS` | `GENERAL` |
 | vertex + index + indirect buffer | OR of the three | OR of accesses | OR of accesses |
 
 The first row is the case nvrhi handles worst today. A frame that renders depth, tests against it
@@ -514,8 +630,8 @@ half goes in the producer's epilogue and the end half in the consumer's prologue
 ### 6.5 UAV ordering
 
 Two consecutive accesses to the same subresource need a UAV barrier when they are:
-- StorageWrite then StorageWrite, or
-- StorageWrite then StorageRead.
+- UAVWrite then UAVWrite, or
+- UAVWrite then UAVRead.
 
 No barrier is emitted if both accesses carry `RelaxedOrder`. Lowering:
 
@@ -631,8 +747,31 @@ synchronise on it. The profile holds this table:
 acquired in the consumer's prologue, using transitions with `QueueRelease` and `QueueAcquire`
 (8.2). The layout change is folded into the pair. Graph resources stay `EXCLUSIVE`. When the two
 queues share a family, no transfer is emitted.
+- The legacy never ran this path: it made cross-queue images `CONCURRENT` instead. Step 6 measures
+  ownership transfers under sync validation. If they fail or cost more than they save, the
+  profile's fallback is `CONCURRENT` sharing for the resources the plan marks cross-queue, which
+  means nvrhi gains a queue-family list on `TextureDesc`/`BufferDesc` again.
 
-**CUDA.** Cross-stream waits go through the same `IFence`. There are no transitions.
+**Queued waits.** A wait that nvrhi queues on a queue (the Vulkan swap-chain acquire, and the Vulkan
+side of `IInteropDevice::graphicsQueueWaitForComputeQueue`) is attached to whatever submission comes
+next on that queue. The legacy hit this trap with `queueWaitForCommandList`. The rules:
+- **The back buffer is used only on the graphics queue.** Only graphics-queue work is ordered after
+  the acquire. A pass that touches the back buffer and is marked `AsyncCompute` is a compile error,
+  not a silent demotion: it can never run asynchronously on any profile, so the flag is a
+  declaration mistake.
+- **The graph's first graphics submission carries the queued waits.** The executor submits nothing
+  on the graphics queue between `beginFrame` (or an interop wait) and its first segment. A queued
+  wait also orders every later submission on its queue, so this is not about correctness: a wait
+  that lands on unrelated work stalls that work until the image is acquired, and it hides the wait
+  from the plan's statistics. Plan fence waits go on the same `submit` (8.3).
+- **Interop hand-overs are graph boundaries.** A resource that comes from another device is
+  imported (14.5). The application issues the interop wait before `Execute`, and the import's
+  first-use prologue assumes it has happened.
+
+**CUDA.** Cross-stream waits go through the same `IFence`. There are no transitions. Each
+`CommandQueue` is one non-blocking stream, and work is ordered only by stream submission and
+events, so the plan's fence values are the only cross-queue order (2.1). A CUDA `submit` replays
+recorded lists, so its waits and signals are enqueued around the replay on the queue's stream.
 
 ### 6.9 Render targets
 
@@ -750,18 +889,37 @@ of this.
 
 ## 7. Compiler pipeline
 
-Every phase is device-free and data-oriented (10.1). The phases run in this order:
+Every phase is device-free and data-oriented (10.1).
+
+**Phases are a list, internally.** The compiler is an ordered list of phase objects over one shared
+compile state, not one function. The phases below are the standard list. Diagnostics and debug aids
+are phases inserted into it, not special cases inside the others:
+- the verifier (11.1), after phase 6, on a miss or always under `StrictValidation`;
+- the JSON and Graphviz dumps (11.3);
+- the debug switches that rewrite a plan, such as `BarrierAfterEveryPass` and `SerializeQueues`
+  (11.4).
+
+`CompileOptions::debugFlags` chooses the list, so a debug build pays for no phase it doesn't run.
+RPS exposes this list to applications (`RpsRenderGraphPhaseInfo`). We do not: a public phase
+interface would freeze the compile state into the ABI. The list stays inside
+`src/render/RenderGraphCompiler.cpp`.
+
+The standard phases run in this order:
 
 1. **Validate.** Rejects:
-   - stale versions and invalid ids;
+   - stale versions and invalid ids, including ids kept from an earlier frame (5.1);
+   - use of an `ISetupContext` after its `Setup` returned (12);
+   - a pass-local transient named by any pass other than the one that created it (5.2);
+   - a write to a history layer other than the current one, `ids[0]` (5.2);
    - texture-only accesses on buffers;
    - conflicting overlaps within a pass;
    - transient reads before any write;
    - tracked imports of `keepInitialState` textures;
    - pass types the profile lacks (Raster on CUDA);
-   - flags that conflict with an access (StorageWrite needs `isUAV`; CUDA rejects normalised-format
-     UAVs);
+   - flags that conflict with an access (UAVWrite needs `isUAV`; on CUDA a UAVWrite texture
+     needs an uncompressed format, and 3-component and depth-stencil formats are rejected, 2.1);
    - a state or stage that is illegal on its pass's queue (6.8), and depth clears on CUDA (6.9);
+   - a back-buffer access in an `AsyncCompute` pass (6.8);
    - `keepInitialState` on a resource that may be aliased (6.7);
    - two passes of one exclusion group enabled together, and disabled-output policies whose
      substitute or passthrough input does not match the output (13.5).
@@ -776,18 +934,26 @@ Every phase is device-free and data-oriented (10.1). The phases run in this orde
    - Async passes are assigned to the compute queue.
    - `GroupReads` is optional.
    - RPS-style heuristics are left as future flags.
+   - **Anti-dependencies are explicit edges.** Whenever the scheduler moves a pass (`GroupReads`,
+     async placement), a write of version v+1 may not move before any reader of version v. The legacy
+     kept explicit write-after-read edges for this; program order hides the need until passes move.
 4. **Lifetimes.** Each resource gets [first use, last use].
    - Resources used on more than one queue are never aliased and never reused within the frame, so
      their lifetimes need no widening. They may still be pooled across frames.
    - Resources used only by passes of one exclusion group (13.5) may share memory with each other.
+     The queue rule is checked first: a cross-queue resource shares nothing, even inside an
+     exclusion group. The legacy's `canReuse` tested the group before the queue mask.
 5. **Memory plan.** Tiers:
    - **Placed** (D3D12; Vulkan once `createHeap` honours `memoryTypeBits`):
-     - heaps are kept per queue and per heap class;
+     - heaps are kept per queue and per heap class (on D3D12 tier 1, render-target/depth textures,
+       other textures and buffers). A test asserts the heap count, because the legacy documented one
+       heap per queue and created one heap in total;
      - resources are sorted by size descending and placed first-fit in a (byte range × lifetime)
        plane;
      - cross-queue resources are not aliased.
    - **Pooled** (D3D11, CUDA, and Vulkan until then): whole-resource reuse keyed by description, with
-     frame-age eviction.
+     frame-age eviction. CUDA has no heaps (`createHeap` is `FE_UNSUPPORTED`), so it stays here
+     until the backend gains virtual memory (`cuMemCreate`/`cuMemMap`).
    - **Dedicated:** the `ForceDedicated` debug switch (11.4).
    - **Choice.**
      - Placed is opt-in per registry (`CompileOptions::placedResources`).
@@ -807,7 +973,7 @@ Every phase is device-free and data-oriented (10.1). The phases run in this orde
    - **Heap retirement.** The heaps and placed resources of an evicted plan are retired through the
      fence values of the last frame that used them. Barrier arrays hold raw pointers, so the
      registry, not the command lists, holds the references until then.
-   - **Statistics** exclude imports and history pairs. The legacy once counted imports and reported a
+   - **Statistics** exclude imports and histories. The legacy once counted imports and reported a
      false 1.11× saving.
 6. **Transitions.** The walk of section 6. The output is `ResourceBarrier` batches attached to pass
    slots, each with a parallel array of reasons (11.3).
@@ -826,26 +992,30 @@ Every phase is device-free and data-oriented (10.1). The phases run in this orde
      - So toggling a pass never reallocates.
    - **The cache is bounded** (`CompileOptions::maxCachedPlans`, default 8, least recently used).
      Plans with the same memory-plan hash share heaps.
+   - **The cache must pay for itself.** Filament compiles every frame and is fast enough, while the
+     cache adds import patching, per-mask schedules and eviction. `maxCachedPlans = 0` is the
+     no-cache baseline: every frame runs phases 1-7. The registry still keeps its pools and heaps,
+     so the baseline measures CPU cost, not GPU object churn.
+     - `rdg_bench` and the samples report the frame cost both ways (10.3).
+     - If the no-cache frame also meets the cache-hit budget on the step-5 samples, the cache is
+       reviewed for removal before step 6. The per-mask schedules of 13.5 would then become
+       recompiles.
 
-## 8. RHI changes (ethereal-nvrhi, `slang-next` → `rdg`)
+## 8. RHI changes (ethereal-nvrhi, `ethereal-dev` → `rdg`)
 
 These changes extend existing interfaces in place and add new types; no existing struct changes.
-The header version stays at 30 and there is no separate barrier interface. Section 8.4 lists what
-that costs.
+That is nvrhi's standing version policy (2.1): the header version stays at 28 and there is no
+separate barrier interface. Section 8.4 lists what the changes touch.
 
 ### 8.1 `IResource`: a common base for resources
 
 ```cpp
-enum class ResourceType : uint8_t { Buffer, Texture, StagingTexture, SamplerFeedbackTexture,
-                                    AccelStruct, OpacityMicromap };
-
 struct HeapBinding { IHeap* heap = nullptr; uint64_t offset = 0; uint64_t size = 0; };
 
 NVRHI_IID(IResource, "<new uuid>")
 struct IResource : IRHIObject
 {
     NVRHI_DECLARE_UUID_TRAITS(IResource)
-    [[nodiscard]] virtual ResourceType getResourceType() const noexcept = 0;
     // Virtual (placed) resources: the heap and byte range they are bound to.
     // FE_NOT_FOUND for committed resources, and before the resource is bound.
     virtual FRESULT queryHeapBinding(HeapBinding& binding) const noexcept = 0;
@@ -858,14 +1028,30 @@ struct ISamplerFeedbackTexture : IResource { ... };
 namespace rt { struct IAccelStruct : IResource { ... }; struct IOpacityMicromap : IResource { ... }; }
 ```
 
-The model is D3D12's `ID3D12Resource`: barriers name an `IResource*`. A backend dispatches on
-`getResourceType()`, one virtual call, instead of a `QueryInterface` per barrier. Every resource
-class adds `NVRHI_IMPLEMENTS_INTERFACE(IResource)` to its explicit QI table (nvrhi ADR 0007).
-Existing calls that take `ITexture*` or `IBuffer*` are unchanged.
+The model is D3D12's `ID3D12Resource`: barriers name an `IResource*`, and the derived interface is
+reached with `QueryInterface`. `IResource` carries no type tag. Every resource class adds
+`NVRHI_IMPLEMENTS_INTERFACE(IResource)` to its explicit QI table (nvrhi ADR 0007). Existing calls
+that take `ITexture*` or `IBuffer*` are unchanged.
+
+**Type dispatch in `barriers()`.** A backend tests each barrier's resource with
+`QueryInterface(uuid_of<ITexture>(), nullptr)`, then `uuid_of<IBuffer>()`, then the rare kinds, and
+casts with `checked_cast`. A null `ppv` only reports support (nvrhi ADR 0006): no pointer is
+returned and no reference is added, so the hot path does no atomic reference-count traffic.
+- The cost is one virtual call and a short walk of the class's interface table per barrier.
+  Textures are tested first because they are most barriers.
+- Step 1 measures it against the executor budget (10.3, 15).
+- The validation layer resolves its wrappers the same way, by QI on the wrapper and then
+  `unwrapResource`.
 
 **Heap bindings.** `queryHeapBinding` is the legacy branches' `ITexture1/IBuffer1::queryHeapBinding`,
 moved to the base. It lets the validation layer check that an aliasing barrier's resources overlap in
-one heap (8.2), and lets tests assert placements.
+one heap (8.2), and lets tests assert placements. On CUDA and D3D11, which have no heaps, it always
+returns `FE_NOT_FOUND`.
+
+**CUDA and interop resources.** The CUDA backend's buffers and textures, including those that
+`IInteropDevice::importBuffer`/`importTexture` create, implement `IResource` like any other. An
+imported CUDA texture is a different object from its graphics texture, on a different device, so a
+graph only ever sees one of the two (14.5).
 
 **Binding results.** Vulkan `bindImageMemory` and `bindBufferMemory` check the `VkResult` and
 return `false` on failure (2.1).
@@ -931,8 +1117,21 @@ struct ICommandList : IRHIObject {
     // For resources tracked in this command list, the tracker is set to each `after`
     // (at SplitEnd for split pairs); untracked resources are not added to the tracker.
     virtual FRESULT barriers(const ResourceBarrier* barriers, uint32_t count) noexcept = 0;
+
+    // Validation aid. While a scope is open (`owner` != nullptr), the validation layer reports
+    // every barrier-changing call as an error naming `owner`: barriers, setTextureState,
+    // setBufferState, setPermanent*State, beginTracking*State, commitBarriers,
+    // setEnableAutomaticBarriers(true) and setEnableUavBarriersFor*(..., true). nullptr closes the
+    // scope. The backends implement it as a no-op.
+    virtual void setExplicitBarrierScope(const char* owner) noexcept = 0;
 };
 ```
+
+**Explicit-barrier scopes.** These close gap 2 of the Unity comparison (14.10). Unity's restricted
+`RasterCommandBuffer` stops a pass body from changing render-target state. In the same way, the
+graph's executor opens a scope around every Native body (9.1), so a body cannot silently move a
+resource away from the state the plan's next barrier expects. The check lives in the validation layer,
+which already keeps per-command-list state, so a release build pays one empty virtual call per pass.
 
 The helper definitions and the layout assertions live in a new source file,
 `src/common/resource-barrier.cpp`, not in the header. The assertions cover
@@ -948,7 +1147,8 @@ arrays with `memcpy`, and the user-provided default constructor does not affect 
   (`queryHeapBinding`, 8.1);
 - a transition with a plane mask other than `All` names a resource that the command list tracks,
   because the tracker works per mip × slice and cannot represent planes. Native graph passes never
-  track resources, so they are unaffected.
+  track resources, so they are unaffected;
+- a barrier-changing call is made while an explicit-barrier scope is open.
 
 **Per backend:**
 
@@ -958,7 +1158,7 @@ arrays with `memcpy`, and the user-provided default constructor does not affect 
 | D3D12 enhanced | one `Barrier` call with texture, buffer and global groups. Combined read layouts are mapped (this fixes the ShaderResource\|DepthRead assert), and `AccessBefore` always carries the real access |
 | Vulkan | one `vkCmdPipelineBarrier2`, using events for splits and aspect masks for planes. Real queue-family indices are used for release/acquire, and like `commitBarriers` it ends dynamic rendering |
 | D3D11 | validation, then a no-op. UAV barriers inside relaxed runs map to NVAPI overlap |
-| CUDA | validation, then a no-op |
+| CUDA | validation, then a no-op: nothing is recorded into the deferred list, because one stream executes in order |
 
 **Feature queries.** New `Feature` values `SplitBarriers`, `AliasingBarriers` and
 `QueueOwnershipTransfer` let the profile tell which flags have native effect. On backends where a
@@ -1024,15 +1224,20 @@ struct IDevice : IRHIObject {
 
 `submit` is the hot path: one native submission carries its waits and signals. The standalone
 `queueWaitFence` and `queueSignalFence` are GPU-side operations for interop and tools. They are
-ordered with submissions to the same queue, as the interop device's existing calls are.
-`executeCommandLists` and `queueWaitForCommandList` remain and are implemented on the same machinery.
+ordered with submissions to the same queue.
+- **They are immediate, not queued.** Unlike Vulkan's `queueWaitForSemaphore` (2.1), a standalone
+  wait is its own submission (an empty `vkQueueSubmit2` on Vulkan), so it never attaches to someone
+  else's work (6.8).
+- `executeCommandLists` and `queueWaitForCommandList` remain and are implemented on the same
+  machinery. So do `vulkan::IDevice::queueWaitForSemaphore`/`queueSignalSemaphore`, which the swap
+  chain uses.
 
 | Backend | `IFence` | `submit` waits and signals |
 | --- | --- | --- |
 | D3D12 | `ID3D12Fence` | `queue->Wait` → `ExecuteCommandLists` → `queue->Signal` |
 | Vulkan | timeline `VkSemaphore` | `VkSubmitInfo2` wait and signal infos, in one `vkQueueSubmit2`. A standalone signal is an empty submit |
 | D3D11 | `ID3D11Fence` (`ID3D11Device5::CreateFence`); `FE_UNSUPPORTED` before D3D11.4 | `ID3D11DeviceContext4::Wait`/`Signal`. There is one queue, so waits are trivially satisfied |
-| CUDA | host-side ring of (value, pooled `CUevent`) per fence. A shared fence is a CUDA external semaphore with true timeline values | signal: `cuEventRecord` on the queue's stream, then append. Wait: `cuStreamWaitEvent` on the earliest recorded event whose value ≥ the target. A GPU wait must be enqueued after its signal (host submission order); otherwise `FE_INVALID_ARGS`. The graph always submits producers first |
+| CUDA | host-side ring of (value, pooled `CUevent`) per fence. A shared fence is a CUDA external semaphore with true timeline values, the mechanism `IInteropDevice` already uses (2.1) | signal: `cuEventRecord` on the queue's stream after the replay, then append. Wait: `cuStreamWaitEvent` before the replay, on the earliest recorded event whose value ≥ the target. A GPU wait must be enqueued after its signal (host submission order); otherwise `FE_INVALID_ARGS`. The graph always submits producers first |
 
 On D3D11 before 11.4, `createFence` returns `FE_UNSUPPORTED`. There the registry retires frames with
 one `IEventQuery` per frame. D3D11 has one queue, so no cross-queue wait is needed (9.1).
@@ -1096,27 +1301,32 @@ CUDA stream memory operations (`cuStreamWriteValue64` and `cuStreamWaitValue64` 
 the target Windows drivers support them is checked in step 1. Until then, the event ring is the
 design.
 
-**Interop.** `IExternalFence` stays the interop handle type. A fence created with `shared = true`
-is the intended source for an exported fence. Unifying `IGraphicsInteropDevice::createFence` with
-`IDevice::createFence` is a follow-up.
+**Interop.** `IInteropDevice` keeps its two queue-wait calls; they need no fence object from the
+caller. Internally they use a shared `ID3D12Fence` or an exportable timeline semaphore on the
+graphics side and an external semaphore on the CUDA side (2.1), which is exactly a `shared = true`
+`IFence`. Rebuilding those calls on `IFence`, and adding a call that hands the shared fence to a
+graph so the hand-over wait rides on the graph's `submit` (6.8), is a follow-up.
 
 ### 8.4 ABI consequences
 
-The header version stays at 30, so `nvrhiVerifyHeaderVersion` cannot detect a mismatched binary.
-These changes alter existing virtual tables:
+The header version stays at 28, as nvrhi's §3.4 now prescribes, so `verifyHeaderVersion` cannot
+detect a mismatched binary. These changes alter existing virtual tables:
 
-- `barriers` is appended to `nvrhi::ICommandList`, which also shifts the derived
-  `d3d12::ICommandList`.
+- `barriers` and `setExplicitBarrierScope` are appended to `nvrhi::ICommandList`, which also shifts
+  the derived `d3d12::ICommandList` and `cuda::ICommandList`.
 - `createFence`, `submit`, the fence queue calls and `waitFences` are appended to `IDevice`, which
-  shifts the derived `d3d12::IDevice` and `vulkan::IDevice`.
-- `IResource` (`getResourceType`, `queryHeapBinding`) is inserted under each resource interface.
+  shifts the derived `d3d12::IDevice`, `vulkan::IDevice` and `cuda::IDevice`.
+- `IResource` (`queryHeapBinding`) is inserted under each resource interface.
+- The validation layer's `CommandListWrapper` and `DeviceWrapper` implement the new calls. A CUDA
+  device's `IInteropDevice` identity (`NVRHI_IMPLEMENTS_ROUTE_PARENT`) is unaffected, because
+  `IDevice` only grows at its end.
 
 No existing struct layout changes: `SubresourceRegion` and the barrier, fence and submit types are
 new, and `TextureSubresourceSet` is untouched.
 
-The rule for the `rdg` branches is therefore that nvrhi, donut, the samples and every installed
-consumer package are rebuilt together. The installed-consumer tests from slang-next are rerun at
-step 1, and the ABI layout assertions are updated in the same commit.
+nvrhi, donut, the samples and every installed consumer package are rebuilt together, which is
+already the rule on ethereal-dev (ADR 0012). The installed-consumer tests and the full ctest matrix
+are rerun at step 1, and the ABI layout assertions are updated in the same commit.
 
 ## 9. Backend lowering
 
@@ -1125,8 +1335,8 @@ step 1, and the ABI layout assertions are updated in the same commit.
 **Prepare.** Before any segment is recorded, the executor calls `Prepare` for every pass use. It
 does so serially, in schedule order (12, 13.1).
 - Pipelines are created there, so recording, possibly on worker threads, creates no objects.
-- Static uploads are recorded there, on one graphics command list submitted before the frame's first
-  segment.
+- Static uploads are recorded there, on one graphics command list. It is the first list of the
+  frame's first graphics submission, so it carries no queued wait of its own (step 5).
 - The legacy's first compile spent 3.7–6.2 ms creating pipelines.
 
 The executor then handles each segment in order:
@@ -1143,6 +1353,11 @@ The executor then handles each segment in order:
 4. **Pass modes:**
    - **Native.** `setEnableAutomaticBarriers(false)` and `setEnableUavBarriersFor*` false for the
      body. The plan is the only barrier source, which is what makes `RelaxedOrder` work.
+     - The executor brackets the body with `setExplicitBarrierScope(passName)` and
+       `setExplicitBarrierScope(nullptr)` (8.2). In validation builds, any state-tracker or
+       `barriers()` call by the body is reported with the pass name; otherwise the next plan
+       barrier's `before` would silently be wrong.
+     - A body that needs such calls is not Native: it is declared Tracked or Restore.
    - **Tracked** (`PassFlags::Tracked`, for passes whose `Execute` reuses code that relies on
      automatic barriers):
      - Automatic barriers stay on. The prologue batch has already moved the tracker, so a correctly
@@ -1159,6 +1374,10 @@ The executor then handles each segment in order:
      - Restoring costs state calls, so it is chosen per pass. Removing it from passes that did not
        need it cut the legacy's state calls per frame from 37 to 27.
 5. **Close and submit** with `IDevice::submit`, attaching the plan's fence waits and signals.
+   - The first graphics-queue submission of the frame is also the one that picks up the swap
+     chain's queued acquire wait on Vulkan (6.8). The executor submits nothing else on that queue
+     before it, including the `Prepare` upload list, which goes into the first segment's
+     submission instead.
    - The registry records the end states of persistent resources, per subresource and per
      physical resource (5.2).
    - It also records the per-queue fence values for retirement. Heaps, pooled resources and command
@@ -1186,6 +1405,8 @@ The executor then handles each segment in order:
 | Queues | graphics, compute, copy | graphics, compute, copy (families, ownership transfer) | graphics only; async demoted | one stream per `CommandQueue` |
 | Cross-queue sync | `IFence` (`ID3D12Fence`) | `IFence` (timeline semaphore) | none needed | `IFence` (event ring) |
 | Pass types | all | all | Raster, Compute, Copy | Compute, Copy, RayTracing (OptiX); Raster is a compile error |
+| Back buffer | host-kept; `beginFrame` waits on the CPU | host-kept; acquire queued on the graphics queue | host-kept | host-kept CUDA texture; no window |
+| Recording | immediate | immediate | immediate, serial | deferred records replayed at submit; indirect dispatch stalls the host |
 | Plan verified | yes | yes | yes, simulated | yes, simulated |
 
 ## 10. Performance design (R5)
@@ -1193,20 +1414,20 @@ The executor then handles each segment in order:
 ### 10.1 CPU
 
 **Recording**
-- **Frame arena.** All per-frame graph data lives in a builder-owned arena, reset each frame:
-  passes, accesses, resource records, each pass use's data and the lambda-pass objects of 12.1.
+- **Frame arena.** All per-frame graph data lives in a graph-owned arena, reset by `Reset`: resource
+  records, passes, accesses, each pass use's data and the lambda-pass objects of 12.1.
 - **Allocation-free steady state.** There is no `std::function` and no per-access heap allocation.
 - **Long-lived passes.** donut pass objects are created once and added every frame. Only their
   per-use data is allocated, from the arena.
 
 **Cache hits**
-- The structural hash is accumulated while declarations are recorded, so the plan lookup at `Finish`
-  is a single hash-table probe.
+- The structural hash is accumulated while declarations are recorded, so the plan lookup at
+  `Compile` is a single hash-table probe.
 - A hit runs no compile phase. The executor patches import slots (O(number of imports)) and replays
   the prebuilt barrier arrays.
 - No `ResourceBarrier` is built per frame. Pointers to transient and persistent resources are fixed
-  in the plan. Only two things are patched: imported pointers, and history pairs, which select their
-  textures by frame parity (O(number of pairs), 5.2).
+  in the plan. Only two things are patched: imported pointers, and histories, which select their
+  textures by frame index (O(total history layers), 5.2).
 
 **Compiling on a miss**
 - **Data layout.** Structure-of-arrays with dense indices.
@@ -1265,7 +1486,8 @@ The executor then handles each segment in order:
 | --- | --- | --- |
 | Compile, cache miss, 64 passes / 256 resources | ≤ 1 ms | `rdg_bench` (device-free) |
 | Compile, cache miss, 1024 passes | ≤ 16 ms | `rdg_bench` |
-| Frame cost on a cache hit (record + `Finish` + lookup + patch), 64 passes | ≤ 0.05 ms | `rdg_bench` |
+| Frame cost on a cache hit (record + lookup at `Compile` + patch), 64 passes | ≤ 0.05 ms | `rdg_bench` |
+| Frame cost without the cache (`maxCachedPlans = 0`: record + full compile), same graphs | reported beside the cache-hit cost, not gated; decides whether the cache stays (7.7) | `rdg_bench` and the step-5 samples |
 | Executor overhead per frame, excluding pass bodies | ≤ 0.2 ms | sample with an empty-body variant |
 | Heap allocations per frame, steady state | 0 | allocation hook in `rdg_bench` and the sample |
 | `create*` calls per frame, steady state | 0 | nvrhi validation-layer counters |
@@ -1312,8 +1534,14 @@ on every compile miss.
 ### 11.2 GPU validation
 
 - **Tracker cross-check:** Tracked mode, 9.1.
-- **Reflection cross-check:** in debug builds a pass may register its `IShaderProgram`. Its reflected
-  SRV and UAV slots must match the declared accesses.
+- **Native-body guard:** explicit-barrier scopes around Native bodies, 8.2 and 9.1.
+- **Reflection cross-check:** in debug builds a pass may register its `IShader`s. Where
+  `IShader::getReflection` returns reflection (shaders built as containers, 2.1), the reflected SRV
+  and UAV registers must match the declared accesses: a UAV register needs a UAVRead or
+  UAVWrite declaration, and every declared access needs a register. Parameters without a register
+  (nested in a parameter block or struct) are skipped and counted, so a pass that the check cannot
+  cover is visible. Shaders without reflection, which today includes all of donut's own passes, are
+  not checked. Moving donut's shaders to containers is outside this design.
 - **Native validation:**
   - D3D12 debug layer, including GPU-based validation.
   - Vulkan validation, including synchronisation validation.
@@ -1353,7 +1581,9 @@ lifetimes, heap placement, barriers with their reasons, and pass toggles that dr
 
 ### 11.4 Debug switches
 
-`CompileOptions::debugFlags` can be changed at run time. A change costs one plan-cache miss.
+`CompileOptions::debugFlags` can be changed at run time. A change costs one plan-cache miss. Each
+switch that changes the plan is a phase inserted into the compiler's list (7); the others act in the
+executor.
 
 | Switch | Effect | Use |
 | --- | --- | --- |
@@ -1376,6 +1606,7 @@ namespace donut::render
     // An enum, so it may cross virtual calls by value (rule R1).
     enum class ResourceId : uint64_t {};
     constexpr ResourceId InvalidResourceId = ResourceId(~0ull);
+    constexpr uint32_t c_MaxHistoryLayers = 8;
     constexpr ResourceId MakeResourceId(uint32_t index, uint32_t version) noexcept;
     constexpr uint32_t GetResourceIndex(ResourceId id) noexcept;
     constexpr uint32_t GetResourceVersion(ResourceId id) noexcept;
@@ -1393,10 +1624,19 @@ namespace donut::render
     struct ClearValue { float color[4]; float depth; uint8_t stencil; };
     struct PassDesc   { const char* name; PassType type; PassFlags flags; uint32_t exclusionGroup = 0; };  // 0 = none
 
-    NVRHI_IID(IPassBuilder, "...")
-    struct IPassBuilder : nvrhi::IObject
+    struct IResourceRegistry;   // what survives between frames (4); its interface is omitted here
+
+    // The accesses of one pass use, declared in IGpuPass::Setup (13.2). Valid only until that
+    // Setup returns; a call after that is a validation error reported by Compile, and Write
+    // returns InvalidResourceId.
+    NVRHI_IID(ISetupContext, "...")
+    struct ISetupContext : nvrhi::IObject
     {
-        NVRHI_DECLARE_UUID_TRAITS(IPassBuilder)
+        NVRHI_DECLARE_UUID_TRAITS(ISetupContext)
+        // Scratch that lives only inside this pass use (5.2): no other pass may name it. The pass
+        // still declares its accesses below; the first one must be a FullWrite or a Clear.
+        virtual ResourceId CreateTransientTexture(const nvrhi::TextureDesc& desc, ResourceFlags flags) noexcept = 0;
+        virtual ResourceId CreateTransientBuffer(const nvrhi::BufferDesc& desc, ResourceFlags flags) noexcept = 0;
         // Reads do not create versions. The region is ignored for buffers; {} is the whole resource.
         virtual void Read(ResourceId resource, Access access, nvrhi::ShaderType stages,
                           const nvrhi::SubresourceRegion& region) noexcept = 0;
@@ -1419,7 +1659,7 @@ namespace donut::render
     {
         NVRHI_DECLARE_UUID_TRAITS(IPrepareContext)
         virtual nvrhi::IDevice* GetDevice() noexcept = 0;
-        virtual nvrhi::ICommandList* GetUploadCommandList() noexcept = 0;   // submitted before the frame
+        virtual nvrhi::ICommandList* GetUploadCommandList() noexcept = 0;   // first list of the first graphics submit
         virtual const nvrhi::FramebufferInfoEx& GetFramebufferInfo() noexcept = 0;   // raster passes
         virtual const nvrhi::TextureDesc* GetTextureDesc(ResourceId id) noexcept = 0;   // nullptr for a buffer
         virtual const nvrhi::BufferDesc* GetBufferDesc(ResourceId id) noexcept = 0;     // nullptr for a texture
@@ -1443,24 +1683,31 @@ namespace donut::render
     struct IGpuPass : nvrhi::IObject
     {
         NVRHI_DECLARE_UUID_TRAITS(IGpuPass)
-        // Declares the accesses of one use; `data` is that use's frame-arena record.
-        // Called inside AddPass. FE_UNSUPPORTED: this pass cannot run in a graph yet.
-        virtual nvrhi::FRESULT Setup(IPassBuilder* builder, void* data) noexcept = 0;
+        // Declares the accesses of one use through `context`; `data` is that use's frame-arena
+        // record. Called only by IRenderGraph::AddPass.
+        // FE_UNSUPPORTED: this pass cannot run in a graph yet.
+        virtual nvrhi::FRESULT Setup(ISetupContext* context, void* data) noexcept = 0;
         // Serial, before any recording. Creates pipelines and records static uploads.
         // Must not write volatile constant buffers.
         virtual nvrhi::FRESULT Prepare(IPrepareContext* context, void* data) noexcept = 0;
         // Records that use. May run on a worker thread.
-        virtual void Execute(IPassContext* context, const void* data) noexcept = 0;
+        virtual nvrhi::FRESULT Execute(IPassContext* context, const void* data) noexcept = 0;
         // The registry released the resources this pass's caches may reference (resize, plan
         // eviction). Drop framebuffers and binding sets that point at them.
         virtual void OnResourcesReleased() noexcept = 0;
     };
 
-    NVRHI_IID(IRenderGraphBuilder, "...")
-    struct IRenderGraphBuilder : nvrhi::IObject
+    // The frame's resources, passes and accesses. Bound to one registry and reused across frames.
+    // Declaring a resource records a description; no GPU object is created until a plan is
+    // instantiated.
+    NVRHI_IID(IRenderGraph, "...")
+    struct IRenderGraph : nvrhi::IObject
     {
-        NVRHI_DECLARE_UUID_TRAITS(IRenderGraphBuilder)
-        virtual void Reset() noexcept = 0;                            // start a frame; resets the arena
+        NVRHI_DECLARE_UUID_TRAITS(IRenderGraph)
+        virtual IResourceRegistry* GetResourceRegistry() noexcept = 0;     // not AddRef'd
+        virtual void Reset() noexcept = 0;                                 // start a frame; resets the arena
+
+        // Resources (5.2). The ids are valid until the next Reset.
         virtual ResourceId CreateTexture(const nvrhi::TextureDesc& desc, ResourceFlags flags) noexcept = 0;
         virtual ResourceId CreateBuffer(const nvrhi::BufferDesc& desc, ResourceFlags flags) noexcept = 0;
         virtual ResourceId ImportTexture(nvrhi::ITexture* texture, nvrhi::ResourceStates entry,
@@ -1468,57 +1715,90 @@ namespace donut::render
         virtual ResourceId ImportHostKeptTexture(nvrhi::ITexture* texture) noexcept = 0;
         virtual ResourceId ImportBuffer(nvrhi::IBuffer* buffer, nvrhi::ResourceStates entry,
                                         nvrhi::ResourceStates exit) noexcept = 0;
+        // Kept by the registry under `name`; a new id for the same resource each frame.
         virtual ResourceId GetPersistentTexture(const char* name, const nvrhi::TextureDesc& desc) noexcept = 0;
         virtual ResourceId GetPersistentBuffer(const char* name, const nvrhi::BufferDesc& desc) noexcept = 0;
-        virtual void GetHistoryPair(const char* name, const nvrhi::TextureDesc& desc,
-                                    ResourceId* current, ResourceId* previous) noexcept = 0;
+        // `layerCount` ids, 2..c_MaxHistoryLayers: ids[0] is this frame's layer (writable), ids[k] was
+        // written k frames ago (read-only) (5.2). FE_INVALID_ARGS for another layer count.
+        virtual nvrhi::FRESULT GetHistory(const char* name, const nvrhi::TextureDesc& desc,
+                                          uint32_t layerCount, ResourceId* ids) noexcept = 0;
+        // Keeps a transient past the end of the graph; `outTexture` is set when the graph executes.
         virtual void Extract(ResourceId texture, nvrhi::ResourceStates exit, nvrhi::ITexture** outTexture) noexcept = 0;
-        // Holds a reference to `pass` until Reset; `data` must come from AllocateFrameData.
+
+        // Passes. AddPass calls pass->Setup(context, data) with a setup context for the new pass,
+        // and holds a reference to `pass` until Reset; `data` must come from AllocateFrameData.
         virtual nvrhi::FRESULT AddPass(const PassDesc& desc, IGpuPass* pass, void* data,
                                        _Out_opt_ PassId* outPass) noexcept = 0;
         // Not part of the structural hash (7.7, 13.5).
         virtual void SetPassEnabled(PassId pass, bool enabled) noexcept = 0;
-        virtual void* AllocateFrameData(size_t size, size_t alignment) noexcept = 0;   // frame arena
         virtual void PushMarker(const char* name) noexcept = 0;
         virtual void PopMarker() noexcept = 0;
-        virtual nvrhi::FRESULT Finish(IRenderGraph** outGraph) noexcept = 0;
-    };
+        // Frame arena. Released at Reset without running destructors: use NewFrameData (below).
+        virtual void* AllocateFrameData(size_t size, size_t alignment) noexcept = 0;
 
-    NVRHI_IID(IRenderGraph, "...")
-    struct IRenderGraph : nvrhi::IObject
-    {
-        NVRHI_DECLARE_UUID_TRAITS(IRenderGraph)
+        // Compiles the recorded frame, or returns the cached plan for its structural hash (7.7), and
+        // freezes the graph until the next Reset. No device calls.
+        virtual nvrhi::FRESULT Compile(const BackendProfile& profile, const CompileOptions& options,
+                                       ICompiledRenderGraph** outPlan) noexcept = 0;
+        // Runs a plan that Compile returned for this frame (9.1). FE_UNSUPPORTED when the
+        // registry has no device; FE_INVALID_ARGS for a plan from another graph or frame.
+        virtual nvrhi::FRESULT Execute(ICompiledRenderGraph* plan, const ExecuteDesc& desc) noexcept = 0;
+
         virtual uint64_t GetStructuralHash() noexcept = 0;
         virtual uint64_t GetEnableMaskHash() noexcept = 0;
         virtual uint32_t GetPassCount() noexcept = 0;
         virtual uint32_t GetResourceCount() noexcept = 0;
     };
 
-    NVRHI_IID(IRenderGraphCompiler, "...")
-    struct IRenderGraphCompiler : nvrhi::IObject
+    // The two-layer history that TAA uses. Inline, not virtual.
+    inline nvrhi::FRESULT GetHistoryPair(IRenderGraph* graph, const char* name, const nvrhi::TextureDesc& desc,
+                                         ResourceId* current, ResourceId* previous) noexcept
     {
-        NVRHI_DECLARE_UUID_TRAITS(IRenderGraphCompiler)
-        virtual nvrhi::FRESULT Compile(IRenderGraph* graph, const BackendProfile& profile,
-                                       const CompileOptions& options, IResourceRegistry* planCache,
-                                       ICompiledRenderGraph** outPlan) noexcept = 0;
-    };
+        ResourceId ids[2];
+        const nvrhi::FRESULT result = graph->GetHistory(name, desc, 2, ids);
+        *current = ids[0];
+        *previous = ids[1];
+        return result;
+    }
 
-    NVRHI_IID(IRenderGraphExecutor, "...")
-    struct IRenderGraphExecutor : nvrhi::IObject
+    // Places one pass use's data in the frame arena. Inline, not virtual: it is outside the ABI.
+    template <typename T, typename... Args>
+    T* NewFrameData(IRenderGraph* graph, Args&&... args) noexcept
     {
-        NVRHI_DECLARE_UUID_TRAITS(IRenderGraphExecutor)
-        virtual nvrhi::FRESULT Execute(ICompiledRenderGraph* plan, IRenderGraph* graph,
-                                       const ExecuteDesc& desc) noexcept = 0;
-    };
+        static_assert(std::is_trivially_destructible_v<T>,
+                      "frame data is released at Reset without running destructors");
+        void* memory = graph->AllocateFrameData(sizeof(T), alignof(T));
+        return memory ? new (memory) T{ std::forward<Args>(args)... } : nullptr;
+    }
 
+    // `device` may be nullptr: such a registry supports recording and compiling only (tests, rdg_bench).
     nvrhi::FRESULT CreateResourceRegistry(nvrhi::IDevice* device, IResourceRegistry** out) noexcept;
-    nvrhi::FRESULT CreateRenderGraphBuilder(nvrhi::IDevice* device, IResourceRegistry* registry,
-                                            IRenderGraphBuilder** out) noexcept;
-    nvrhi::FRESULT CreateRenderGraphCompiler(IRenderGraphCompiler** out) noexcept;
-    nvrhi::FRESULT CreateRenderGraphExecutor(nvrhi::IDevice* device, IRenderGraphExecutor** out) noexcept;
+    // One graph per registry: FE_INVALID_ARGS if `registry` already has one.
+    nvrhi::FRESULT CreateRenderGraph(IResourceRegistry* registry, IRenderGraph** out) noexcept;
     nvrhi::FRESULT ComputeBackendProfile(nvrhi::IDevice* device, BackendProfile* out) noexcept;
 }
 ```
+
+**Recording rules.**
+- **The setup context is the open pass.** `AddPass` hands `Setup` an `ISetupContext` for the pass
+  being added, so a declaration always knows its pass. The concrete graph implements it, pointed at
+  that pass, so nothing is created per pass. The context replaces the old `IPassBuilder`. Calling
+  `AddPass` from inside `Setup` is rejected.
+- **Where transients are created.** A transient that several passes share, such as a bloom chain
+  that one pass writes and the next reads, is created on the graph in `AddToGraph`, before `AddPass`.
+  Scratch that only one pass uses, such as SsaoPass's deinterleaved arrays, is created in `Setup`
+  through `ISetupContext::CreateTransientTexture/Buffer`. It stays out of the pass's `AddToGraph`
+  signature but is still placed, aliased and pooled by the graph (5.2, 13.3).
+- **Frame data is trivially destructible.** `Reset` releases the arena without running destructors,
+  so per-use data holds ids, plain values and non-owning pointers only, never reference-counted
+  pointers or containers. `NewFrameData<T>` checks this with a `static_assert`. That closes gap 1 of
+  the Unity comparison: nothing ever destroyed the data that `AddToGraph` placed with `new`.
+- **One graph per registry.** The registry keeps one graph's persistent states, plan instances and
+  frame retirement. Two graphs sharing it could execute the same cached plan, and so the same
+  physical transients, in one frame. A view or pipeline that needs a second graph gets a second
+  registry.
+- **Compile freezes the graph.** After `Compile` and until the next `Reset`, resource declarations,
+  `AddPass` and `SetPassEnabled` are rejected, so the executor sees exactly what was compiled.
 
 As in nvrhi's interface style (`com-interface-abi.md` 3.2), the virtual functions take no default
 arguments. Callers pass `{}` for a whole resource and `ResourceFlags::None` explicitly.
@@ -1528,26 +1808,88 @@ The rest of the header follows the same style:
   `placedResources`, `maxCachedPlans` and `debugFlags` (7.5, 7.7, 11.4). `ExecuteDesc` holds the
   task-scheduler callback and the timer switch.
 - `ICompiledRenderGraph` provides queries and the dump.
-- `IResourceRegistry` holds persistent resources, the plan cache, the pools and caches, the fences and
-  retirement.
+- `IResourceRegistry` holds persistent resources, the plan cache, the pools and caches, the fences
+  and retirement.
 
-The builder is reused across frames: `Reset` starts a frame instead of creating a new builder object,
+The graph is reused across frames: `Reset` starts a frame instead of creating a new graph object,
 which keeps the frame path free of allocations.
 
 ### 12.1 Lambda helper (header-only, outside the ABI surface)
 
 ```cpp
 // include/donut/render/RenderGraphLambdaPass.h
+// setup(ISetupContext*, Data&) declares the accesses; exec(IPassContext*, const Data&) records the work.
 template <typename Data, typename SetupFn, typename ExecFn>
-const Data& AddLambdaPass(IRenderGraphBuilder* graph, const PassDesc& desc, SetupFn&& setup, ExecFn&& exec);
+const Data& AddLambdaPass(IRenderGraph* graph, const PassDesc& desc, SetupFn&& setup, ExecFn&& exec);
 ```
 
-The helper places an `IGpuPass` object and its `Data` in the frame arena (`AllocateFrameData`), and
-the builder destroys them at `Reset`. The object is an `ObjectImpl<IGpuPass>` whose virtual table
-lives in the caller's module. Its reference count protects only against misuse: the builder owns the
-object for the frame. Its `Prepare` and `OnResourcesReleased` do nothing unless the caller passes a
-prepare function. Samples use the helper for one-off passes; donut's own passes are long-lived
-classes (section 13).
+The helper places an `IGpuPass` object and its `Data` in the frame arena (`AllocateFrameData`). The
+object is an `ObjectImpl<IGpuPass>` whose virtual table lives in the caller's module.
+- **Destruction.** The graph releases its reference at `Reset`. The object's `DestroyObject` then
+  runs the destructors of the lambdas and of `Data` but frees nothing, because the arena owns the
+  memory. This is the one arena object with a destructor, so the lambdas' captures may own
+  resources. `Data` itself follows the frame-data rule (12).
+- Its reference count protects only against misuse: the graph owns the object for the frame.
+- Its `Prepare` and `OnResourcesReleased` do nothing unless the caller passes a prepare function.
+
+Samples use the helper for one-off passes; donut's own passes are long-lived classes (section 13).
+
+### 12.2 Frame data: a typed blackboard (header-only, outside the ABI surface)
+
+A frame put together from optional, independent features needs a place where one feature publishes
+the ids it produced and another finds them, without threading them through every `AddToGraph`
+signature. URP has `ContextContainer frameData` for this, and Filament has its `Blackboard`.
+
+```cpp
+// include/donut/render/RenderGraphFrameData.h
+class FrameData
+{
+public:
+    void Clear() noexcept;                                    // right after IRenderGraph::Reset
+    template <typename T> T& Create(IRenderGraph* graph);     // once per type per frame, in the graph's arena
+    template <typename T> T* Find() noexcept;                 // nullptr if nothing created it this frame
+    template <typename T> T& Get() noexcept;                  // asserts it exists
+private:
+    struct Entry { const void* key; void* value; };
+    Entry    m_Entries[32];
+    uint32_t m_Count = 0;
+};
+
+struct SceneTargets { ResourceId depth, color, motionVectors; };
+
+// depth feature
+auto& scene = frame.Create<SceneTargets>(graph);
+scene.depth = depthPass->AddToGraph(graph, { graph->CreateTexture(depthDesc, ResourceFlags::None), view }).depth;
+
+// SSAO feature, optional, elsewhere
+if (SceneTargets* s = frame.Find<SceneTargets>())
+    frame.Create<AmbientOcclusion>(graph).ao = ssao->AddToGraph(graph, { s->depth, ... }).ao;
+```
+
+Rules:
+- **Keyed by C++ type**, through the address of an inline per-type tag, with no strings and no RTTI.
+  A misspelled key is a compile error. Producers and consumers of one type must be built into one
+  module, because an inline variable's address can differ across DLL boundaries.
+- **Values are structs of ids**, so related ids travel together. They are trivially destructible
+  and live in the graph's frame arena (12), so a lookup is a few pointer compares and allocates
+  nothing.
+- **Creating and reading are separate calls.** `Create<T>` is the only call that makes an entry;
+  `Find<T>` and `Get<T>` never insert one.
+- **Writes are stored back.** A write returns a new version, so the feature that writes a resource
+  stores the returned id in the entry. If it forgets, the next reader uses the old version, and
+  `Compile` rejects it as a stale id naming both passes (5.1).
+- **For composing frames only.** `app::RenderGraphLayer::BuildGraph` and sample code use it.
+  donut's passes keep their typed `AddToGraph` inputs and outputs and never read the blackboard,
+  so what each pass consumes stays visible in its signature.
+- The graph, the compiler and the plan never see it: no ABI change, and no effect on the structural
+  hash.
+
+**Why not Filament's `Blackboard`.** Filament stores one `FrameGraphHandle` per name in a
+`std::unordered_map<std::string_view, FrameGraphHandle>`.
+- The map allocates every frame, against R5.
+- String keys turn a misspelling into an empty entry at run time.
+- `operator[]` is implemented as `insert_or_assign(name, {})`, so using it to read resets the entry.
+- One handle per key splits related resources across separate names.
 
 ## 13. donut's passes in the graph
 
@@ -1581,7 +1923,7 @@ The graph knows nothing else about a pass.
 
 | Call | When | What it does |
 | --- | --- | --- |
-| `Setup` | inside `AddPass`, every frame | declares the accesses, and the disabled-output policies (13.5) |
+| `Setup` | inside `AddPass`, every frame | declares the accesses of the use being added, and its disabled-output policies (13.5), through its `ISetupContext` |
 | `Prepare` | serially, after compile and before recording | creates pipelines (from `GetFramebufferInfo` and the descriptions) and records static uploads |
 | `Execute` | while recording, possibly on a worker thread | records commands. Volatile constant buffers are written here only, on the list that uses them. The legacy enforced this rule with an upload guard, and the validation build keeps it |
 | `OnResourcesReleased` | after a resize or a plan eviction | drops cached framebuffers and binding sets, so that they do not pin pooled memory |
@@ -1589,40 +1931,53 @@ The graph knows nothing else about a pass.
 ### 13.2 Adding a pass to a graph
 
 Each pass gets a typed entry point, `AddToGraph`. It allocates the use's data in the frame arena,
-calls `AddPass` with itself, and returns the output ids. `Setup` reads the data to declare the
-accesses; `Execute` reads it, resolves the ids through `IPassContext`, and records the work through
-the same code that the immediate entry point uses.
+calls `AddPass` with itself and the data, and returns the output ids. `Setup` reads the data to
+declare the accesses through its `ISetupContext`; `Execute` reads it, resolves the ids through
+`IPassContext`, and
+records the work through the same code that the immediate entry point uses.
 
 ```cpp
 // DeferredLightingPass.h
-struct DeferredLightingGraphInputs  { ResourceId depth, gbuffer[4], ambientOcclusion, shadowMap; const ICompositeView* view; ... };
+struct DeferredLightingGraphInputs  { ResourceId depth, gbuffer[4], ambientOcclusion, shadowMap, output; const ICompositeView* view; ... };
 struct DeferredLightingGraphOutputs { ResourceId output; };
 
-DeferredLightingGraphOutputs AddToGraph(IRenderGraphBuilder* graph, const DeferredLightingGraphInputs& inputs);
+DeferredLightingGraphOutputs AddToGraph(IRenderGraph* graph, const DeferredLightingGraphInputs& inputs);
 
 // DeferredLightingPass.cpp
-DeferredLightingGraphOutputs DeferredLightingPass::AddToGraph(IRenderGraphBuilder* graph,
+struct UseData { DeferredLightingGraphInputs inputs; ResourceId output; };
+
+DeferredLightingGraphOutputs DeferredLightingPass::AddToGraph(IRenderGraph* graph,
                                                               const DeferredLightingGraphInputs& inputs)
 {
-    auto* data = new (graph->AllocateFrameData(sizeof(UseData), alignof(UseData))) UseData{ inputs };
+    auto* data = NewFrameData<UseData>(graph, inputs);   // UseData is trivially destructible (12)
     graph->AddPass({ "DeferredLighting", PassType::Compute, PassFlags::None }, this, data, nullptr);
     return { data->output };   // written by Setup
 }
 
-nvrhi::FRESULT DeferredLightingPass::Setup(IPassBuilder* builder, void* data) noexcept
+nvrhi::FRESULT DeferredLightingPass::Setup(ISetupContext* context, void* data) noexcept
 {
     auto& use = *static_cast<UseData*>(data);
-    builder->Read(use.inputs.depth, Access::ShaderRead, nvrhi::ShaderType::Compute, {});
+    context->Read(use.inputs.depth, Access::ShaderRead, nvrhi::ShaderType::Compute, {});
     ...
-    use.output = builder->Write(use.output, Access::StorageWrite, nvrhi::ShaderType::Compute,
+    use.output = context->Write(use.inputs.output, Access::UAVWrite, nvrhi::ShaderType::Compute,
                                 {}, AccessFlags::FullWrite);
     return nvrhi::FS_OK;
+}
+
+nvrhi::FRESULT DeferredLightingPass::Execute(IPassContext* context, const void* data) noexcept
+{
+    const auto& use = *static_cast<const UseData*>(data);
+    ...
 }
 ```
 
 Rules:
 - **Several uses per frame.** One pass object can be added several times, for example DepthPass once
-  per shadow cascade. Each use has its own arena data.
+  per shadow cascade. Each use has its own arena data, which `AddPass` hands back to `Setup`,
+  `Prepare` and `Execute`.
+- **Arena data lives one frame.** It is released at the graph's `Reset`, together with the ids it
+  holds. A pass that copies an id into a member and uses it in a later frame gets a stale-id error
+  (5.1).
 - **Views.** Overloads that take an `ICompositeView` add one use per child view, for stereo or cube
   faces. Per-view temporaries have disjoint lifetimes, so the memory plan gives them the same memory
   (7.5). No extra API is needed; a test checks the folding.
@@ -1639,9 +1994,9 @@ Rules:
 | DeferredLightingPass | one compute pass; `Inputs` from ids | Native | none beyond the base |
 | GBufferFillPass / DepthPass / ForwardShadingPass / MaterialIDPass | raster via `RenderCompositeView`; framebuffer from `IPassContext` | Tracked, then Native | PSO cache key gains `FramebufferInfo` |
 | CascadedShadowMap / PlanarShadowMap (not passes) | shadow texture persistent; DepthPass used once per slice | Tracked | none |
-| SsaoPass | one pass; internal arrays stay internal at first | Restore | later: per-call textures, so they become graph transients |
+| SsaoPass | one pass; the deinterleaved arrays become pass-local transients (`ISetupContext::CreateTransientTexture`), so the graph aliases and pools them | Restore | the arrays leave the class; no change to the `AddToGraph` signature |
 | BloomPass | graph-native chain (downsample/blur per mip) | Native | shaders reused; class chain bypassed |
-| TemporalAntiAliasingPass | motion vectors + resolve; `GetHistoryPair`; `feedbackIsValid = !IsNewAllocation(prev)` | Native | per-call textures; `AdvanceFrame` no longer swaps |
+| TemporalAntiAliasingPass | motion vectors + resolve; `GetHistoryPair` (two layers); `feedbackIsValid = !IsNewAllocation(prev)` | Native | per-call textures; `AdvanceFrame` no longer swaps |
 | ToneMappingPass | histogram transient, exposure persistent | Native | per-call framebuffer and buffers |
 | SkyPass / EnvironmentMapPass | one pass each | Native | per-call framebuffer or texture |
 | MipMapGenPass | one pass; the body writes and then reads mips | Restore | per-call texture |
@@ -1657,17 +2012,21 @@ The existing API keeps working.
 
 ### 13.4 App integration
 
-`app::RenderGraphLayer` (an `app::IAppLayer`, 3.3) owns the registry and the builder. Each frame it:
-1. imports the back buffer as host-kept;
-2. calls a virtual `BuildGraph`;
-3. compiles and executes.
+`app::RenderGraphLayer` (an `app::IAppLayer`, 3.3) owns the registry, its graph and a `FrameData`
+blackboard (12.2), which it clears right after `Reset`. Each frame,
+after `DeviceManager::BeginFrame` has run the swap chain's `beginFrame`, it:
+1. calls the graph's `Reset`, then imports the current back buffer (from `IGraphicsSwapChain`)
+   with `ImportHostKeptTexture`;
+2. calls a virtual `BuildGraph(IRenderGraph*, FrameData&)`;
+3. compiles and executes. The first graphics submission carries the queued acquire wait on Vulkan
+   (6.8).
 
 A resize changes resource descriptions, which changes the hash, which forces a recompile. No pass is
 recreated.
 
 ### 13.5 Conditional passes and exclusion groups
 
-**Toggling.** `AddPass` returns a `PassId`. `SetPassEnabled(id, enabled)`, called before `Finish`,
+**Toggling.** `AddPass` returns a `PassId`. `SetPassEnabled(id, enabled)`, called before `Compile`,
 turns a pass off without changing the structural hash (7.7). The plan's memory therefore stays, and
 a toggle costs at most one partial compile per new mask.
 
@@ -1693,14 +2052,14 @@ These are the decisions made in review.
 
 ### 14.1 Branches (decided)
 
-Fresh `rdg` branches, based on `slang-next`, carry the feature development:
+Fresh `rdg` branches, based on the current development line, carry the feature development:
 - the aggregate, plus `ethereal-nvrhi`, `ethereal-donut` and `ethereal-samples`;
-- each started from the commit that the aggregate's `slang-next` head records for it.
+- each started from the commit that aggregate `main` records for it: nvrhi `ethereal-dev` `123d105`,
+  donut `ethereal-dev` `4f4b31c` (shader-tool `b5bec4b`), samples `main` `37ac258`.
 
-The aggregate worktree is `.worktrees/rdg`. The slang-next worktree now lives at
-`.worktrees/ethereal-slang-next`. Its nvrhi and samples checkouts are detached at newer commits than
-the local `slang-next` branches, so step 0 starts each submodule branch from the gitlink, not from
-the branch name.
+The aggregate worktree is `.worktrees/rdg`. Its `rdg` branch is `ac93875` plus the design commit,
+so step 0 rebases it onto aggregate `main` (`264ac18`) before the submodules are initialised. The
+`slang-next` line is no longer a reference: everything it was meant to provide is on ethereal-dev.
 
 ### 14.2 RHI extension shape (decided)
 
@@ -1712,7 +2071,8 @@ the branch name.
   `ISamplerFeedbackTexture`, `IAccelStruct` and `IOpacityMicromap`.
 - **New `SubresourceRegion`** (mips, slices, plane mask), shared by barriers and graph accesses.
   `TextureSubresourceSet` is not changed.
-- **No header-version bump.** See 8.4 for what that requires.
+- **No header-version bump and no derived `IFoo1`.** This was a review decision for the rdg work; it
+  is now nvrhi's general policy (§3.4, ADR 0012). See 8.4 for what it requires.
 - **Layout assertions** for `ResourceBarrier` live in the source file, not the header.
 
 ### 14.3 Async compute and cross-queue synchronisation (decided)
@@ -1733,8 +2093,18 @@ the branch name.
 
 ### 14.5 Multi-device graphs (decided: later)
 
-Each graph runs on one device. Interop resources are imported, with acquire and release placed at
-first and last use.
+Each graph runs on one device. A CUDA graph and a graphics graph that share data follow the
+pattern the GVDB samples already use with `IInteropDevice` (`sample-utils/ScreenPresenter.cpp`):
+- The shared resource is created on the graphics device. The CUDA graph imports the CUDA object that
+  `importTexture`/`importBuffer` returned, and the graphics graph imports the original. Both are
+  tracked imports with declared entry and exit states. On CUDA those states only document intent.
+- The application orders the two graphs with `computeQueueWaitForGraphicsQueue` and
+  `graphicsQueueWaitForComputeQueue` between their `Execute` calls (6.8, queued waits).
+- Interop is D3D12 and Vulkan only. On Vulkan, layered textures with more than one mip cannot be
+  imported, so such a resource cannot be shared at all.
+
+One graph spanning both devices, with the hand-over waits inside its plan, is the later step. It
+builds on the shared-fence follow-up in 8.3.
 
 ### 14.6 Placement, pass base and resource ids (decided)
 
@@ -1764,10 +2134,11 @@ first and last use.
 2. a full queue-legality table for states and stages, and the corrected async example (6.8, 6.11);
 3. clears as accesses with their own slot (6.9);
 4. the Restore pass mode (9.1);
-5. an R1-compliant header with enum ids, abi_lint coverage and derived-interface evolution (3.2, 5.1,
-   12);
-6. `IResource::queryHeapBinding`, checked Vulkan memory binding, and the donut queue-family fix
-   (2.2, 8.1, step 0);
+5. an R1-compliant header with enum ids and abi_lint coverage (3.2, 5.1, 12). The legacy's
+   derived-interface evolution (`IFoo1`) was dropped in the rebase: interfaces now change in place,
+   as nvrhi's do;
+6. `IResource::queryHeapBinding` and checked Vulkan memory binding (8.1). The queue-family fix
+   is no longer needed: it went into nvrhi's Vulkan factory (2.2);
 7. the D3D12 discard and alias rules (6.6, 6.7);
 8. the pass lifecycle: `Prepare` and `OnResourcesReleased` (12, 13.1);
 9. history pairs specified, persistent buffers, and poolable extracted resources (5.2);
@@ -1775,15 +2146,140 @@ first and last use.
 11. debug switches, a visualizer, timers and deterministic A/B tooling (10.4, 11.3, 11.4);
 12. a corrected memory budget, the parallel-recording rules, and more samples (10.1, 10.3, 15).
 
+The rebase onto ethereal-dev (2026-11-01) was checked against the evaluation again. Six more lessons
+came out of its sections 2, 4 and 6, and of how ethereal-dev reintroduced one of the legacy's traps:
+
+13. **Queued waits.** The legacy's `queueWaitForCommandList` trap (a Vulkan wait attached to the
+    next submission) now sits inside nvrhi's swap chain and Vulkan interop. The back buffer is
+    graphics-queue only, and the first graphics submission carries the queued waits (6.8, 9.1).
+14. **Explicit write-after-read edges** once the scheduler moves passes (7.3, evaluation 4).
+15. **The queue rule before exclusion groups** when deciding whether memory can be shared (7.4,
+    evaluation 6, the legacy `canReuse` defect).
+16. **A heap-count test** for heaps per queue and per class (7.5, evaluation 6).
+17. **A `CONCURRENT` fallback** in case EXCLUSIVE ownership transfers, which the legacy never ran,
+    fail validation or cost too much (6.8, evaluation 2).
+18. **Interop hand-overs as graph boundaries,** with the existing `IInteropDevice` waits, until
+    fences can be shared (8.3, 14.5).
+
+The evaluation itself stays a dated record of the 2026-10-21 design against the slang-next RHI. Its
+section 5 facts about Vulkan memory binding still hold on ethereal-dev (2.1). Its queue-family fact
+does not.
+
+### 14.9 Review of 2026-11-04 (decided)
+
+1. **UAV access names.** `StorageRead` and `StorageWrite` became `UAVRead` and `UAVWrite` (6.1). The
+   names match nvrhi's own vocabulary (`isUAV`, `ResourceStates::UnorderedAccess`). nvrhi's spelling
+   is mixed (`isUAV`, but `setEnableUavBarriersFor*`). The access names use `UAV`, while 8.2
+   (`BarrierType::Uav`, `UavBarrier`) and 11.3 (`UavOrder`) keep `Uav`, as nvrhi's own barrier
+   calls do.
+2. **No `IResource::getResourceType`.** Backends reach the derived interface with `QueryInterface`
+   (8.1). The conflict was R5: the old text chose the type tag to avoid a QI per barrier.
+   `QueryInterface(riid, nullptr)` adds no reference, so the per-barrier cost is one virtual call and
+   a table walk, which step 1 measures. `ResourceType` is gone with it.
+3. **No builder objects.** `IPassBuilder` and `IRenderGraphBuilder` are deleted (12), and their
+   methods moved to other interfaces:
+   - resource creation and importing (`CreateTexture`, `CreateBuffer`, the imports,
+     `GetPersistent*`, `GetHistoryPair`, `Extract`) and pass recording (`AddPass`,
+     `SetPassEnabled`, the markers, `Reset`, `AllocateFrameData`) to `IRenderGraph`, which is bound
+     to its registry (`GetResourceRegistry`);
+   - the access declarations of the old `IPassBuilder` (`Read`, `Write`, `SetColorTarget`,
+     `SetDepthTarget`, `SetDisabledOutput`) to a new `ISetupContext`, which `AddPass` hands to
+     `Setup`.
+
+   `IResourceRegistry` keeps only its original role: persistent resources and their cross-frame
+   states, the plan cache, heaps and pools, the framebuffer and binding caches, fences and
+   retirement. `IGpuPass` keeps its per-use `void* data`: `Setup(ISetupContext*, void* data)`,
+   `Prepare(IPrepareContext*, void* data)`, `Execute(IPassContext*, const void* data)`, and use data
+   stays in the graph's frame arena (13.2). The review wrote `SetUp`, `IResourceRegistery` and
+   `GetPersistant*`; the doc's existing spellings `Setup`, `IResourceRegistry` and `GetPersistent*`
+   are kept.
+
+   Two follow-ups on 2026-11-05 shaped this:
+   - The first withdrew the pass keeping its own data (with use records found by a `GetPassId`),
+     dropped the old rule 3.2.4, "data and operations are separate objects", as a principle of this
+     design, and freed the `IPassBuilder` methods from having to go to `IRenderGraph`.
+   - The second moved resource creation and importing from the registry to the graph, introduced
+     `ISetupContext`, and returned the registry to its original role.
+
+   Consequences:
+   - **Ids belong to the graph again** (5.1). The graph is reused across frames and reuses indices,
+     so versions come from a counter in the graph that `Reset` never clears, and ids kept from an
+     earlier frame fail the stale-id check.
+   - **`Finish` is gone.** `Compile` freezes the graph until its next `Reset`, and the plan-cache
+     parameter of `Compile` is gone because the graph reaches its registry.
+   - **The setup context is the open pass** (12). It is valid only during `Setup`; using it later
+     is a validation error.
+   - **One graph per registry** (12). The registry no longer holds frame-scoped records, but it
+     still keeps one graph's persistent states, plan instances and retirement.
+   - **Kept although the review did not list it:** `IGpuPass::OnResourcesReleased`. `Prepare` and
+     `Execute` return `FRESULT`.
+
+### 14.10 Comparison with Unity RenderGraph (decided 2026-11-05)
+
+Comparing the interfaces with Unity's RenderGraph (Unity 6 Core RP) and Filament's `Blackboard` led to
+four additions:
+
+1. **Frame data is trivially destructible** (12, gap 1). The arena never ran destructors on per-use
+   data. `NewFrameData<T>` enforces the rule; the lambda helper is the one arena object that is
+   destroyed (12.1).
+2. **Explicit-barrier scopes around Native bodies** (8.2, 9.1, gap 2). This is the counterpart of
+   Unity's restricted command buffers: in validation builds, a Native body cannot change resource
+   states behind the plan.
+3. **Pass-local transients** on `ISetupContext` (5.2, 12, option 1), after Unity's
+   `CreateTransientTexture`. A pass's internal scratch is aliased and pooled by the graph without
+   appearing in its `AddToGraph` signature.
+4. **A typed blackboard**, `FrameData` (12.2, option 2), after URP's `ContextContainer`. It is keyed
+   by type rather than by string, which is where it departs from Filament's `Blackboard`.
+
+Not adopted: a setup interface per pass kind (Unity's `IRasterRenderGraphBuilder` and its siblings).
+One `ISetupContext`, with misuse reported by `Compile` with the pass name, keeps the ABI smaller.
+
+### 14.11 Comparison with Filament's FrameGraph (decided 2026-11-05)
+
+1. **Compile and execute are methods of `IRenderGraph`** (4, 12), as Filament's `compile()` and
+   `execute()` are methods of `FrameGraph`.
+   - `IRenderGraphCompiler`, `IRenderGraphExecutor`, `CreateRenderGraphCompiler` and
+     `CreateRenderGraphExecutor` are gone. `IRenderGraph::Compile(profile, options, &plan)` and
+     `IRenderGraph::Execute(plan, desc)` replace them.
+   - Once rule 3.2.4 was dropped, separate operation objects bought nothing. Being device-free comes
+     from a registry created without a device, and plan caching from the separate
+     `ICompiledRenderGraph`.
+   - Inside `src/render`, the compiler and the executor remain separate concrete classes.
+2. **The plan cache must pay for itself** (7.7, 10.3). Filament recompiles every frame.
+   `maxCachedPlans = 0` is the no-cache baseline, its frame cost is reported beside the cache-hit
+   cost, and the cache is kept or removed on those numbers after step 5.
+
+Not adopted: templated resource types (Filament's `RESOURCE` concept), because every resource here is
+an nvrhi texture or buffer and templates cannot cross the COM ABI. Still open from the same
+comparison: `[[nodiscard]]` on the declaration calls that return a new version, `desc.debugName` as
+the resource name in diagnostics, the capture rule for lambda passes, and resource forwarding.
+
+### 14.12 Comparison with AMD RPS (decided 2026-11-05)
+
+1. **N-layer histories** (5.2, 12), after RPS's temporal resources. `GetHistory(name, desc,
+   layerCount, ids)` replaces the virtual `GetHistoryPair`, which becomes an inline two-layer
+   wrapper. Layer 0 is the only writable layer, and `IsNewAllocation` is reported per layer.
+2. **The compiler is an internal phase list** (7, 11.4). The verifier, the dumps and the
+   plan-changing debug switches are phases in that list. Unlike RPS's `RpsRenderGraphPhaseInfo`,
+   the list is not part of the ABI.
+
+Also confirmed by the comparison, with no change: the split between pass objects and per-use data
+(RPS's `pUserContext` plus node arguments); access declarations made in `Setup` rather than in a
+static node signature; and the graph owning submission, which the queued-wait rule (6.8) needs.
+
+Section 2.3 says RPS has no aliasing barrier. That holds for RPS's legacy D3D12 path, which has no
+`ALIASING` barrier and initialises placed resources with a discard instead. RPS's enhanced path does
+deactivate aliased resources, in the same form as 6.7. 2.3 is frozen, so the nuance is recorded here.
+
 ## 15. Implementation steps and exit criteria
 
 | Step | Content | Exit criterion |
 | --- | --- | --- |
-| 0 | `rdg` branches per 14.1; mark the old donut record superseded; nvrhi ADR for section 8; donut `findQueueFamilies` reset fix (2.2) | All four repositories build at their starting points; slang-next test matrix unchanged; Vulkan device selection correct on a two-GPU machine |
-| 1 | nvrhi: `IResource` with `queryHeapBinding`; `SubresourceRegion`; `ResourceBarrier` + `barriers` on D3D12 (legacy, enhanced), Vulkan, D3D11, CUDA; checked Vulkan `bind*Memory`; `IFence`, `submit` and `waitFences` on all four; check of CUDA stream memory operations | nvrhi tests per backend: combined depth-read layouts, plane-masked transitions, split pairs, aliasing (including byte-overlap validation and the enhanced alias form of 6.7), discard, release/acquire, fence ordering across queues (including CUDA streams), and the CPU wait table of 8.3.1 (poll, finite, infinite). Clean under debug layers, GBV, sync validation and Compute Sanitizer. Installed-consumer tests pass after the full rebuild (8.4) |
-| 2 | donut and samples: the `app::IAppLayer` rename (3.3), in one commit per repository | All samples build on every backend they built on before; the slang-next sample runs are unchanged |
-| 3 | `RenderGraph*` core: builder with frame arena, graph, compiler phases 1-7 with queue legality, frame boundary (6.12) and enable masks (13.5), profiles for all four APIs, verifier, JSON dump, `rdg_bench`, header-hygiene test and abi_lint | Verifier passes a device-free corpus (≥ 40 graphs × 4 profiles), including two-frame and plan-switch replays; golden barrier lists for the 6.11 frame, with and without async SSAO; compile and cache-hit budgets of 10.3 met |
-| 4 | Executor (Native, Tracked, Restore), `Prepare` phase, registry (persistent and history pairs, plan cache with bound, pooled tier, fences, `IEventQuery` fallback, retirement), command-list pool, debug switches (11.4) | Headless compute graph on D3D11, D3D12, Vulkan and CUDA with clean validation; zero allocations and zero `create*` calls per steady-state frame; `SkipAliasingBarriers` makes the aliasing test fail |
-| 5 | `IGpuPass` on every donut pass; `AddToGraph` for DeferredLighting, GBuffer, Forward, Depth/Shadow, Sky, Blit, ToneMapping, TAA, SSAO, Bloom, MipMapGen; `deferred_shading_rdg` and `variable_shading_rdg`; deterministic options and `ab_compare.py`; visualizer and timers | Images match the originals pixel for pixel on D3D12, Vulkan and D3D11; 120 Debug frames with zero validation messages, with the layer confirmed loaded; barrier, CPU and GPU budgets of 10.3 met; immediate entry points unchanged for the other samples |
-| 6 | Placed tier on D3D12 (opt-in, probe, estimate), async SSAO, split barriers, `async_compute_rdg` | Memory budget of 10.3 met on the bloom/SSAO graph; GPU-time budget met; sync validation clean, including across the frame boundary; each feature measured on and off |
+| 0 | Rebase aggregate `rdg` onto `main`, then `rdg` branches per 14.1; mark the old donut record superseded; nvrhi ADR for section 8 (next number after 0014) | All four repositories build at their starting points; the ethereal-dev ctest matrix (45/45) unchanged |
+| 1 | nvrhi: `IResource` with `queryHeapBinding`; `SubresourceRegion`; `ResourceBarrier` + `barriers` on D3D12 (legacy, enhanced), Vulkan, D3D11, CUDA; checked Vulkan `bind*Memory`; `IFence`, `submit` and `waitFences` on all four, with validation-layer wrappers; `setExplicitBarrierScope` (validation layer only); check of CUDA stream memory operations | nvrhi tests per backend: combined depth-read layouts, plane-masked transitions, split pairs, aliasing (including byte-overlap validation and the enhanced alias form of 6.7), discard, release/acquire, fence ordering across queues (including CUDA streams around deferred replay), the CPU wait table of 8.3.1 (poll, finite, infinite), and a state call inside an explicit-barrier scope reported by the validation layer. `cuda-tests` and the interop tests unchanged. Clean under debug layers, GBV, sync validation and Compute Sanitizer. Installed-consumer tests pass after the full rebuild (8.4) |
+| 2 | donut and samples: the `app::IAppLayer` rename (3.3), in one commit per repository | All samples build on every backend they built on before, the GVDB CUDA samples included; the sample runs are unchanged |
+| 3 | `RenderGraph*` core: graph with frame arena, `NewFrameData` and setup context (pass-local transients included), compiler phases 1-7 as an internal phase list (7) with queue legality, frame boundary (6.12) and enable masks (13.5), profiles for all four APIs, verifier, JSON dump, `rdg_bench`, header-hygiene test and abi_lint | Verifier passes a device-free corpus (≥ 40 graphs × 4 profiles), including two-frame and plan-switch replays; golden barrier lists for the 6.11 frame, with and without async SSAO; compile and cache-hit budgets of 10.3 met, with the no-cache frame cost reported beside them |
+| 4 | Executor (Native with explicit-barrier scopes, Tracked, Restore), `Prepare` phase, registry (persistent resources and N-layer histories, plan cache with bound, pooled tier, fences, `IEventQuery` fallback, retirement), command-list pool, debug switches (11.4) | Headless compute graph on D3D11, D3D12, Vulkan and CUDA with clean validation; zero allocations and zero `create*` calls per steady-state frame; a three-layer history rotates correctly and reports `IsNewAllocation` per layer; `SkipAliasingBarriers` makes the aliasing test fail |
+| 5 | `IGpuPass` on every donut pass; `AddToGraph` for DeferredLighting, GBuffer, Forward, Depth/Shadow, Sky, Blit, ToneMapping, TAA, SSAO, Bloom, MipMapGen; `deferred_shading_rdg` and `variable_shading_rdg`; deterministic options and `ab_compare.py`; visualizer and timers; `FrameData` (12.2) used by `RenderGraphLayer` | Images match the originals pixel for pixel on D3D12, Vulkan and D3D11; 120 Debug frames with zero validation messages, with the layer confirmed loaded; barrier, CPU and GPU budgets of 10.3 met; frame cost with and without the plan cache reported, and the cache kept or removed on those numbers (7.7); immediate entry points unchanged for the other samples |
+| 6 | Placed tier on D3D12 (opt-in, probe, estimate), async SSAO, split barriers, `async_compute_rdg` | Memory budget of 10.3 met on the bloom/SSAO graph; GPU-time budget met; sync validation clean, including across the frame boundary; each feature measured on and off; Vulkan ownership transfers kept or replaced by the `CONCURRENT` fallback, on measurements (6.8) |
 | 7 | Parallel segment recording, with the donut prerequisites of 10.1 | Executor and parallel-recording budgets met; `BindingCache` and `BlitTexture` concurrency tests pass |
