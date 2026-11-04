@@ -294,6 +294,33 @@ the plan with its reason.*
   nvrhi build (D3D12 only, RTXMU off) running the same test executable with the Agility SDK 1.619 in
   `.\D3D12\` (`NVRHI_TEST_AGILITY_SDK_VERSION=619`). It reported `enhanced barriers: 1`.
 
+*P1.2 as built (2026-11-05).* The rename of design 3.3 is in ethereal-donut `3bfe4cb` and
+ethereal-samples `d5bad16`, one commit each.
+- **donut:** `app::IAppLayer`, `AddLayerToFront`, `AddLayerToBack`, `RemoveLayer`, `m_vLayers` and
+  `app::ImGuiLayer` in 5 files. The parameter and comment wording in `DeviceManager` follows the new
+  names (`pLayer`, "layers").
+- **samples:** the same names in 40 source files and 2 READMEs. The script is word-bounded, keeps the
+  line endings (8 of the files are CRLF) and leaves `nvrhi::IRenderPass` alone.
+- **Deviations:**
+  - The header and source follow the class: `donut/app/ImGuiLayer.h` and `src/app/ImGuiLayer.cpp`
+    (git renames). The design named only the class.
+  - Some files keep the old names on purpose because they describe history:
+    - ethereal-samples ADR 0001;
+    - nv_asteroids `docs/class_map.md` and `docs/featuredemo_map.md`, which map the 2018 binary,
+      whose donut class was `IRenderPass`.
+  - The design's count of 43 sample files was approximate. 42 files change.
+- **Exit:**
+  - Release: all 120 steps after the reconfigure. Debug: everything except the 5 WaveWorks steps,
+    as before (known issues). ctest 49/49 in both configurations.
+  - Debug smoke runs of `point-cloud` (GVDB: `ImGuiLayer`, `AddLayerToBack`, `RemoveLayer`), each
+    captured through DBWIN by PID with the layer DLL confirmed in the process:
+    - `-d3d12 --debug --screenshot`: `D3D12SDKLayers.dll` loaded; saved frame 60; exit 0; no warnings
+      or errors.
+    - `-vk --debug`, closed with `CloseMainWindow` after 20 s: `VkLayer_khronos_validation.dll`
+      loaded; exit 0; no warnings or errors.
+    - With `--screenshot`, the Vulkan run reports the back buffer's missing `TRANSFER_SRC` usage
+      (known issues). That is older than this plan.
+
 ## Verification results
 
 **P1.1 (2026-11-05)**, on the NVIDIA RTX 4050 Laptop GPU, Windows 10 19045:
@@ -324,5 +351,10 @@ the plan with its reason.*
   `eDepthReadOnlyStencilAttachmentOptimal`. nvrhi's rendering setup derives one layout per attachment
   from the tracked state. Address it in P1.4 if the executor's Native mode produces that split, or have
   the graph keep both planes together for attachments.
+- **Vulkan swap-chain images lack `TRANSFER_SRC` usage** (ethereal-nvrhi `vulkan-swapchain.cpp`,
+  since ADR 0014's `123d105`). They are created with `eColorAttachment | eTransferDst | eSampled`, so a
+  back-buffer readback (the GVDB `--screenshot` path) is a validation error on Vulkan
+  (VUID-vkCmdCopyImageToBuffer-srcImage-00186). The fix is to add `eTransferSrc` where the surface
+  supports it. It is not part of P1.1 or P1.2, and the screenshots of pass 2 need it.
 - **Enhanced barriers in the worktree build** need `NVRHI_WITH_RTXMU=OFF` and the Agility SDK. Until
   the aggregate build can turn RTXMU off, the enhanced path is verified with the standalone nvrhi build.
