@@ -914,6 +914,70 @@ found (ethereal-donut `57db135`).
 - **Exit:** met, with deviation 2. Images are identical, validation is clean, barriers are fewer, the
   executor overhead is within budget, and the cache is kept on its numbers.
 
+*P2.2 as built (2026-11-05).* `variable_shading_rdg` (ethereal-samples `61a3b43`), with two donut additions
+(ethereal-donut `dbcbd85`) and a fix to the original sample. A DeviceManager change went in on the way
+(ethereal-donut `4fe8394`, by the user's request): a new window neither takes the focus nor comes to the
+front of the display (`DeviceCreationParameters::bringWindowToFront`, default false).
+- **The sample** records variable_shading's frame in the original's order:
+  1. TAA's motion vectors (from the second frame on);
+  2. the shading-rate compute pass;
+  3. the forward pass, a Tracked lambda pass. It prepares the lights on its own list (the light
+     constants are a volatile buffer) and draws opaque then transparent, with the surface as the
+     framebuffer's shading-rate attachment through a `ShadingRateRead` access;
+  4. TAA's resolve; 5. a blit.
+  - Colour, depth and motion vectors are persistent resources, as the original's targets carry from
+    frame to frame, with the original's clear value. TAA's feedback is its history pair.
+  - It is an `ApplicationBase` for its scene loading and renders through a `RenderGraphLayer` it
+    owns.
+  - Its switches match P2.1's.
+- **donut:**
+  - The executor makes a raster pass's `ShadingRateRead` use its framebuffer's shading-rate attachment.
+    The framebuffer cache keys on a tenth slot. `testShadingRateAttachment` checks it on D3D12 and
+    Vulkan.
+  - `TemporalAntiAliasingPass::AddMotionVectorsToGraph` and `AddResolveToGraph` are `AddToGraph`'s two
+    stages, for a frame that uses the motion vectors before it draws the scene. `AddToGraph` is
+    unchanged.
+- **The original's TAA bug.** variable_shading never called `TemporalAntiAliasingPass::AdvanceFrame`,
+  so its resolve read `feedback1` on every frame while writing `feedback2`. Its history was a texture
+  nothing wrote. The graph version's history pair feeds back correctly, so from the second frame on
+  the images differed in 82 % of pixels (frame 1 matched). The original now advances after its
+  resolve, in the worktree and in the P2.0 baseline build. The variable_shading references were
+  captured again from that build (`variable_shading-d3d12.png` SHA-256 `15158E7C2F609829`,
+  `variable_shading-vk.png` `A2913C16D14A17E6`). The earlier ones are kept as `*.no-advance-frame.png`.
+- **Fixed on the way (in the sample):**
+  - `RenderView` does not prepare a draw strategy for the scene: `PrepareForView` first, as
+    `RenderCompositeView` does.
+  - Without the optimized clear value the D3D12 clears were not fast clears, and the graph frame was
+    10 % slower than the original.
+- **Results** (Release, NVIDIA adapter; D3D12 and Vulkan only, as the original):
+  - *Images:* the original itself varies between runs in three pixels: (1015, 272), (1144, 639) and
+    (1145, 639). Over five baseline runs and three graph runs on each API, every graph pixel value is
+    one the baseline also produces.
+  - *Validation:* 120 Debug frames on each API with zero messages: the D3D12 debug layer, and the
+    Vulkan validation layer with `VK_LAYER_VALIDATE_SYNC=1`; each layer's DLL was seen loaded.
+  - *Barriers per frame:* D3D12: 20 in the original (RenderDoc) against 15 in the graph. Vulkan: 17
+    in the graph (`RunStatistics`); the original was not counted there.
+  - *Frame times,* `-notimers`, alternating rounds, median of the per-run medians (and minimum):
+
+    | API | CPU frame, ms: original / graph | GPU frame, ms: original / graph |
+    | --- | --- | --- |
+    | D3D12 (6 rounds) | 0.886 (0.814) / 0.850 (0.772) | 0.833 (0.761) / 0.798 (0.716) |
+    | Vulkan (14 rounds) | 0.829 (0.762) / 0.856 (0.761) | 0.782 (0.710) / 0.804 (0.711) |
+
+  - *Executor overhead* with empty bodies: 0.047 ms on D3D12, 0.027 ms on Vulkan (budget 0.2 ms).
+  - *Plan cache:* the layer's frame cost is 0.104 ms with it and 0.145 ms without on D3D12; 0.088 and
+    0.142 ms on Vulkan. The cache stays.
+- **Deviations:**
+  1. The comparison is against the original with its TAA fix, in both builds.
+  2. On Vulkan the graph's median frame is 3 % above the original (paired per-round median +0.029 ms
+    GPU); the minimums are equal, and between sessions the medians moved by 10 % either way. Met
+    within noise, as P2.1's deviation 2.
+  3. Vulkan's barrier count is the graph's own; the original was counted on D3D12 only.
+  4. The geometry passes' `AddToGraph` cannot carry this frame's forward pass: the light constants
+     are a volatile buffer written by `PrepareLights`, which must run on the drawing list. The sample
+     records the forward pass as a lambda pass instead.
+- **Exit:** met, with deviations 1-3.
+
 ## Verification results
 
 **P1.1 (2026-11-05)**, on the NVIDIA RTX 4050 Laptop GPU, Windows 10 19045:
