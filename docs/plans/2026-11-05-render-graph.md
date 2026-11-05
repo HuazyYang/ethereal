@@ -978,6 +978,114 @@ front of the display (`DeviceCreationParameters::bringWindowToFront`, default fa
      records the forward pass as a lambda pass instead.
 - **Exit:** met, with deviations 1-3.
 
+*P2.3 as built (2026-11-05).* `async_compute_rdg` (ethereal-samples `7d33ae8`), with donut additions and a
+timer fix (ethereal-donut `7b2c20f`) and an nvrhi fix (ethereal-nvrhi `3d4e449`).
+- **The frame,** Sponza, deferred:
+  1. GBufferFill: the G-buffer and depth, transients;
+  2. SSAO with `PassFlags::AsyncCompute`, on the compute queue;
+  3. ShadowDepth: the sun's four 2048² cascades, into the `CascadedShadowMap`'s texture, which is
+     imported host-kept. It needs nothing that SSAO writes, so it overlaps SSAO;
+  4. DeferredLighting with the ambient occlusion and the shadow map;
+  5. Sky; 6. TAA (motion vectors from depth, then the resolve); 7. Bloom; 8. ToneMapping; 9. a blit.
+  - After DeferredLighting the G-buffer is dead. The motion vectors, the TAA output, the bloom chain
+    and the tone-mapped colour reuse its memory: these are the reusable transients of 10.3.
+  - `-immediate` records the same frame without a graph, on one list with nvrhi's automatic barriers,
+    with SSAO on the graphics queue. There is no original sample (P2.0), so this is the GPU-time
+    reference. Its images match the graph's within the frame's own variation.
+  - Switches: `-sync`, `-nosplit` and `-placed` turn each step-6 feature on or off. `-asyncgain N`
+    overrides `LatticePolicy::asyncOverlapGain`. `-graphstats`, `-passtimes` (per-stage GPU times, from
+    the graph's timers or from timer queries around the immediate stages) and `-size WxH` measure.
+- **donut:**
+  - `SsaoGraphInputs::asyncCompute`.
+  - A non-const `RenderGraphLayer::GetProfile()`. The plan cache keys on the profile.
+  - `PlanStatistics::unplacedTransientBytes`: transients kept out of placement (cross-queue, `NoAlias`,
+    `DebugCapture`). They take memory of their own, so the peak transient memory is
+    `placedPeakBytes + unplacedTransientBytes`. `heap_count` checks it.
+  - `RegistryStatistics::placedObjectBytes`: the device's sizes of the placed objects, summed.
+- **Found and fixed on the way:**
+  1. *nvrhi, D3D12:* every timer query resolved into one readback buffer. A timed compute list in
+     flight beside a timed graphics list is debug-layer error #1047, because a buffer is written by one
+     queue at a time. Each queue now has its own resolve buffer, and a query reads its own queue's
+     timestamp frequency. `testTimerQueriesOnTwoQueues` reports #1047 on the old code and passes on
+     D3D12 and Vulkan.
+  2. *donut, Vulkan:* the per-pass timers stopped after the fourth frame. `CollectTimers` re-polled
+     the set it had just read, and nvrhi's Vulkan `getTimerQueryTime` marks a query not started, so
+     the four sets stayed pending. Each set is now polled once. `donut_passes` checks that the last
+     frame publishes the frame before it; it fails on the old code on Vulkan, and passes on all four
+     backends.
+  3. *In the sample:* the shadow map keeps its initial state, so it is imported host-kept. A clear
+     value is set only on render targets: D3D12 rejects one on a UAV-only texture.
+- **Results** (Release, NVIDIA RTX 4050 Laptop GPU, 1280×720 unless stated):
+  - *Memory,* D3D12 with the Placed tier. The poolable transients are 57.5 MB (54.9 MiB).
+
+    | SSAO | Peak, plan statistics | Peak, device sizes (`heapBytes / placedObjectBytes`) |
+    | --- | --- | --- |
+    | graphics queue | 34.4 MB, **59.79 %** (one heap) | 36.37 / 60.62 MB, **60.00 %** |
+    | compute queue | 27.0 MB in two heaps + 12.1 MB cross-queue, **68.0 %** | heaps 59.6 % of their objects |
+
+    - At 1024×768, 1600×900 and 1920×1080 the graphics-queue peak is 60.08-60.12 % by the plan
+      statistics and 59.85-60.08 % by the device's sizes.
+    - The peak is the live set at DeferredLighting: the G-buffer, depth, the occlusion and the
+      lighting output, 37 of the frame's ~62 bytes per pixel. Placement reaches it.
+    - Async SSAO costs 8 points. Its depth, normals and occlusion cross queues, and are never aliased
+      (design 7.4). Its arrays sit in a compute-queue heap of their own (7.5).
+    - No `create*` call after the warm-up, in any configuration.
+  - *Validation:* 120 Debug frames, zero messages, with the layer's DLL seen loaded in each run.
+    - D3D12 debug layer: async + split + Placed (with per-pass timers), `-sync`, `-nosplit`, Pooled
+      and `-immediate`.
+    - Vulkan with `VK_LAYER_VALIDATE_SYNC=1`: default (SSAO demoted), forced async with ownership
+      transfers, forced async without splits, and `-immediate`. Each run crosses 119 frame boundaries.
+    - The same session's `nvrhi_explicit_barrier_tests` provoked a WAW hazard under the same layer and
+      variable, and synchronization validation reported it.
+  - *Images:* graph against immediate, 38 pixels of 921,600 differ on D3D12, and 43 on D3D11. Two runs
+    of one mode differ in 40-51 pixels, in the same region, so the frame itself is not deterministic
+    there.
+  - *Frame times:* 20 alternating rounds per API, `-notimers`, 300 frames after 100. Each value is the
+    median of the per-run medians; the paired column is the median of the per-round differences.
+
+    | API, configuration | GPU frame, ms (min) | paired against immediate, GPU |
+    | --- | --- | --- |
+    | D3D12 immediate | 1.886 (1.796) | |
+    | D3D12 graph: async, split, Placed | 1.890 (1.715) | +0.013 ms, lower in 9 of 20 rounds |
+    | D3D12 graph: `-sync` | 1.910 (1.790) | +0.006 |
+    | D3D12 graph: `-nosplit` | 1.902 (1.737) | +0.025 |
+    | D3D12 graph: Pooled | 1.871 (1.763) | −0.013, lower in 10 of 20 |
+    | Vulkan immediate | 1.774 (1.688) | |
+    | Vulkan graph, default (SSAO demoted) | 1.815 (1.663) | +0.040 ms, lower in 4 of 20 |
+    | Vulkan graph, `-nosplit` | 1.804 (1.694) | +0.044 |
+    | Vulkan graph, forced async | 1.960 (1.737) | +0.186 |
+    | Vulkan graph, forced async, `-nosplit` | 1.990 (1.817) | +0.223 |
+
+  - *Each feature on and off,* paired per round:
+    - Async SSAO: D3D12 −0.066 ms GPU (lower in 13 of 20). Vulkan, forced across families:
+      +0.178 ms (higher in 19 of 20).
+    - Split barriers: D3D12 −0.035 ms (lower in 14 of 20). Vulkan +0.001 with SSAO demoted, −0.027
+      with async.
+    - Placed: D3D12 +0.008 ms (lower in 9 of 20): no measurable cost. It saves 40 % of the transient
+      memory against unaliased objects.
+  - *Barriers:* D3D12 64 per frame (async, Placed; 11 aliasing, 2 split halves, 4 fence waits) and 75
+    with `-sync`. Vulkan 68 by default and 67 with forced async (5 ownership pairs).
+  - *Per stage* (`-passtimes`, 6 runs each): the graph's pass bodies are as fast as the immediate
+    stages or faster. On Vulkan they sum to 1.573 ms against 1.716, and the immediate stages include
+    their clears and barriers. The Vulkan difference is in the work between passes.
+  - *Vulkan ownership transfers (6.8): kept.* They validate clean under synchronization validation.
+    Forced async SSAO is slower than demoted SSAO in 19 of 20 rounds. Per stage, SSAO stretches from
+    0.265 to 0.378 ms on the compute queue, and the shadow and lighting passes slow by 0.045 and
+    0.034 ms beside it. The five ownership pairs are a small part of a 0.18 ms loss that `CONCURRENT`
+    would not remove. The default `LatticePolicy` demotion on a separate family is confirmed, and
+    nvrhi gains no queue-family list.
+- **Deviations:**
+  1. The GPU-time reference is the sample's own `-immediate` frame; no original exists.
+  2. The memory budget is met at its limit. With SSAO on the graphics queue it is 59.79 % at 1280×720
+     (60.00 % by the device's sizes), and 60.08-60.12 % at three other resolutions. With async SSAO it
+     is 68 %, by design 7.4 and 7.5.
+  3. On Vulkan the graph's GPU frame is 0.040 ms (2.3 %) above the immediate frame (higher in 16 of 20
+     rounds; the graph's minimum is lower). It is the work between passes (above). On D3D12 the budget
+     is met.
+  4. Async SSAO stays on the graphics queue on Vulkan by the default `LatticePolicy`. The forced runs
+     exercise the ownership transfers.
+- **Exit:** met, with deviations 2 and 3.
+
 ## Verification results
 
 **P1.1 (2026-11-05)**, on the NVIDIA RTX 4050 Laptop GPU, Windows 10 19045:
@@ -1148,6 +1256,14 @@ The executor overhead, barrier, frame-time and memory budgets need the samples: 
     buffers and other textures too.
   - The Placed tier with enhanced barriers runs device-free only (the RTXMU build above).
   - Exclusion-group members do not share bytes in the actual placement (deviation 3).
+- **P2.3 follow-ups** (async compute):
+  - Vulkan's work between passes costs 0.04 ms more than the immediate frame's. Find it with a GPU trace
+    (Nsight Systems or Graphics): batch boundaries, clears and layout transitions.
+  - Aliasing across queues: a heap shared by the graphics and compute queues, and lifetimes ordered by
+    the plan's fences, would bring async SSAO's peak down to the graphics-queue figure.
+  - nvrhi's Vulkan `getTimerQueryTime` marks a query not started, and D3D12's does not. The executor
+    no longer depends on it; the backends could agree.
+  - `RegistryStatistics::pooledBytes` stays 0; the Pooled tier's memory is not measured.
 - **P1.7 follow-ups** (parallel recording):
   - Consecutive segments of one queue with no waits between them could share one submission. Each is
     submitted alone now, with its own fence signal.
