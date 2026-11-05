@@ -1,6 +1,6 @@
 # Render graph (RDG) for donut: implementation
 
-- Status: Approved (2026-11-05). Pass 1 in progress (P1.0-P1.3 done); pass 2 scheduled after it, by the
+- Status: Approved (2026-11-05). Pass 1 in progress (P1.0-P1.4 done); pass 2 scheduled after it, by the
   user's instruction of 2026-11-05.
 - Date: 2026-11-05
 - Design: [`../rdg-design.md`](../rdg-design.md) (Accepted 2026-11-05); decision record
@@ -164,7 +164,8 @@ entry per backend, each creating its device through `createDeviceOnAdapter`.
 - Async-compute placement and cross-queue fences (6.8); split barriers (6.4).
 - **Exit:** headless graphs with an async pass and with split barriers run clean under D3D12 debug
   layer + GBV and Vulkan synchronisation validation, across the frame boundary; the verifier corpus
-  covers the Placed tier on both D3D12 heap tiers.
+  covers the Placed tier on both D3D12 heap tiers; on the GPU, `SkipAliasingBarriers` makes the aliasing
+  test fail (moved from P1.4).
 
 ### P1.7 donut: parallel recording (design step 7, donut half)
 
@@ -461,6 +462,103 @@ gained the option that lints it.
   11. Culling keeps earlier writers alive behind a `FullWrite` that covers only part of a resource.
 - **Exit (design step 3):** met. The numbers are in the verification results below.
 
+*P1.4 as built (2026-11-05).* The executor and the registry's runtime half are in ethereal-donut
+(`351921a`).
+- **Sources:** `RenderGraphExecutor.cpp` (new) holds the executor. `RenderGraphRegistry.cpp` gained
+  waiting, release and statistics. The compile side gained three things the executor needs:
+  - `CompiledRenderGraph::m_EntryStates`, the plan's frame-start state per unit. It replaces the
+    per-resource `entry` that the P1.3 follow-up called out.
+  - `PlanUse::accessIndex`, which finds a use's clear value.
+  - `PlanResource::isRenderTarget`.
+- **Lowering, once per plan.** `PlanBarrier`s become `nvrhi::ResourceBarrier` arrays per pass and slot.
+  Host-kept resources become tracker operations, and so does every barrier on a profile without
+  `explicitBarriers`. Each frame patches only the resource pointers of imports, persistent resources,
+  history layers and extracted textures.
+- **Physical resources** belong to a structure instance (all masks of one structural hash), to a
+  persistent or history record, or to the extract pool.
+  - Each tracks per-subresource states and the plan serial that owns them. While one plan repeats, its
+    cyclic model holds and nothing is checked.
+  - On a plan switch, `FinalizeStates` makes the old plan's states exact. History layers take the
+    frame-start state of the layer they serve next. Patch barriers then reach the new plan's entry
+    states.
+  - Unused structure instances are collected; the free pool ages out after 120 frames.
+  - An extracted texture returns to the pool when the pool holds its only reference.
+- **A frame:**
+  - The prologue graphics list opens only when there are patches or a `Prepare` upload. It is submitted
+    first. On a switch it waits for the previous frame's other queues, and every queue's first segment
+    waits for it.
+  - One command list per segment, recorded in plan order on the calling thread. Each segment signals its
+    queue's fence and waits for its producers. A wait on the previous frame uses that frame's values
+    unless the plan switched; after a switch, the first segment of each queue waits for the whole
+    previous frame.
+  - Pass modes:
+    - Native passes run inside `setExplicitBarrierScope`.
+    - Tracked passes begin tracking at the declared states, run with automatic barriers, and are
+      cross-checked in Debug.
+    - Restore passes set the declared states back and commit.
+  - Graph markers wrap the passes.
+  - Without fences (D3D11 before 11.4), one `IEventQuery` per frame.
+- **The registry:** per-queue fences, `WaitForFrames`, and `ReleaseResources`. `ReleaseResources`
+  finalizes the last plan's states, then drops plans, instances and pools; persistent resources stay.
+  `ReleasePersistent` reallocates on next use. `RegistryStatistics` gained `objectsCreated`, the count
+  of every `create*` call.
+- **Tests:** `test_render_graph_gpu <backend>`, with ctest entries `test_render_graph_gpu_{d3d11,d3d12,
+  vulkan,cuda}` (`RUN_SERIAL`, label `gpu`). Copies and clears only, every result read back:
+  - buffer chains on one queue and with an async fill;
+  - twelve frames of mask and async plan switches;
+  - Tracked and Restore passes;
+  - the debug switches;
+  - a persistent buffer across plan switches, `ReleaseResources` and `ReleasePersistent`;
+  - a `Prepare` upload;
+  - render-target and depth clears through the framebuffer;
+  - a three-layer history with `IsNewAllocation` per layer, across `ReleaseResources`;
+  - `Extract` with pool reuse;
+  - the tracker fallback (a profile without `explicitBarriers`);
+  - the Native-scope guard, which expects the validation layer's error;
+  - on Vulkan, a deliberate hazard proving that synchronization validation is loaded;
+  - the steady state.
+- **Steady-state measurement.** The test replaces `operator new` and counts allocations in its own
+  module, where the graph, the executor and nvrhi are linked; the native runtimes allocate elsewhere.
+  - It runs on the device without the nvrhi validation layer.
+  - Recording and the cached compile must allocate nothing.
+  - Execution must allocate no more, per frame (median), than a hand-written loop making the same nvrhi
+    calls. Those allocations are nvrhi's own: 20 per frame on D3D12, 2 on Vulkan, 0 on D3D11, 23 on
+    CUDA, identical in both loops.
+  - `RDG_ALLOC_TRACE=1` prints the stack of each allocation of one measured frame.
+- **Fixed on the way:**
+  - On Vulkan, a write to an import in its entry state after the previous frame's write had no barrier.
+  - The prologue list was opened and closed every frame but submitted only with work, which nvrhi
+    reports.
+  - The executor called `runGarbageCollection` itself; on Vulkan that allocates, and in an app it runs
+    twice.
+  - Tracked-mode checks ran on D3D11, where the tracker is not real.
+  - The tracker fallback left automatic barriers on.
+  - `ReleaseResources` dropped the last plan without finalizing its history states.
+  - Segments waited for the prologue only when it held patches, not when it held only uploads.
+- **Deviations from the plan and the design:**
+  1. The Placed tier returns `FE_UNSUPPORTED` until P1.6. The GPU half of the exit criterion
+     "`SkipAliasingBarriers` makes the aliasing test fail" moves to P1.6. The device-free negative test
+     (P1.3) stands.
+  2. `ExecuteDesc::timers` is P1.5 (per-pass timers) and `parallelFor` is P1.7. Segments are recorded
+     on the calling thread.
+  3. `ReleaseResources` calls no `OnResourcesReleased`: a cached plan holds no pass, because passes
+     belong to one frame. P1.5 calls it for the current frame's passes when donut passes have caches.
+  4. A `Write` access with `AccessFlags::Clear` clears to zero; `Write` has no clear value.
+     `SetColorTarget` and `SetDepthTarget` carry one.
+  5. The executor does not call `runGarbageCollection`. The host does, once per frame (10.1), as
+     DeviceManager already does.
+  6. A new hazard rule (Vulkan only), extending P1.3 deviation 8. When an import's first access is in its
+     entry state and either side writes, the plan emits a same-state barrier: Vulkan orders nothing
+     across submissions. D3D12 orders and flushes between `ExecuteCommandLists` calls.
+  7. The tracker fallback keeps automatic barriers off and applies the plan through `setState` and
+     `commitBarriers`.
+     - A fresh resource starts tracking from `Common`, its creation state on every backend.
+     - A global UAV barrier (`resource ~0u`) has no tracker form and is dropped.
+  8. Tracked and Restore change nothing on D3D11 and CUDA, which record no barriers.
+- **Exit (design step 4):** met, except the GPU aliasing test (deviation 1). Headless graphs run with
+  clean validation on all four backends. Steady-state frames make no `create*` call and add no
+  allocation. A three-layer history rotates correctly and reports `IsNewAllocation` per layer.
+
 ## Verification results
 
 **P1.1 (2026-11-05)**, on the NVIDIA RTX 4050 Laptop GPU, Windows 10 19045:
@@ -489,6 +587,22 @@ gained the option that lints it.
 | full Debug build | everything except the 5 WaveWorks steps (known issues) |
 | ctest, Debug | 53/53 |
 
+**P1.4 (2026-11-05)**, on the NVIDIA RTX 4050 Laptop GPU, Windows 10 19045. Each GPU test ran alone.
+
+| Run | Layers confirmed | Result |
+| --- | --- | --- |
+| `test_render_graph_gpu d3d12`, Debug, legacy barriers (`enhanced barriers: 0`) | debug layer (`ID3D12InfoQueue`) and GPU-based validation | PASS, no messages; the Native-scope guard reports its expected error |
+| `test_render_graph_gpu vulkan`, Debug | `VK_LAYER_KHRONOS_validation` enabled, `VK_LAYER_VALIDATE_SYNC=1`; the deliberate hazard reported as `SYNC-HAZARD-WRITE-AFTER-WRITE` | PASS, no messages; the async fill crosses compute and graphics families with an ownership transfer |
+| `test_render_graph_gpu d3d11`, Debug | nvrhi validation layer (no D3D11 debug runtime, as in nvrhi's own tests); fences through D3D11.4 | PASS |
+| `test_render_graph_gpu cuda`, Debug | nvrhi validation layer | PASS |
+| steady state, the same runs | — | 0 `create*` calls in 32 frames; 0 allocations in recording and the cached compile; execution allocates the same as the same nvrhi calls by hand (per frame: D3D12 20, Vulkan 2, D3D11 0, CUDA 23) |
+| `test_render_graph`, Debug and Release | — | 31/31; golden 6.11 lists unchanged |
+| `rdg_bench --gate`, Release, D3D12 legacy profile, medians | — | compile on a miss: 444 µs for 64 passes (1 ms), 13.2 ms for 1024 passes (16 ms); frame on a cache hit: 21.4 µs (50 µs); 0 heap allocations per steady-state frame (0); all budgets met |
+| full Release build | — | complete (reruns after applocal "file in use" link failures, the known flake) |
+| ctest, Release | — | 57/57: the 53 of P1.3 and the four `test_render_graph_gpu_*` |
+| full Debug build | — | everything except the 5 WaveWorks steps (known issues) |
+| ctest, Debug | — | 57/57 |
+
 ## Known issues and follow-ups
 
 - **WaveWorks does not build in Debug** (ethereal-samples, since `01b4945`, before this plan). The
@@ -512,10 +626,15 @@ gained the option that lints it.
   the aggregate build can turn RTXMU off, the enhanced path is verified with the standalone nvrhi build.
 - **P1.3 follow-ups** (graph core):
   - The 1024-pass compile takes 14.5 ms against a 16 ms budget. Profile it before P1.6 adds phases.
-  - `PlanResource::entry` and `creation` are per resource: the frame-start state of the first unit. P1.4
-    needs per-subresource creation states for resources whose mips, slices or planes start in different
-    states.
   - An import whose last use is on the compute queue, and whose exit state the compute queue cannot
     hold, needs a later graphics pass; the compile fails otherwise. The executor could add a trailing
     graphics batch instead.
   - `ScheduleFlags::GroupReads` does not reorder yet.
+- **P1.4 follow-ups** (executor):
+  - The `IEventQuery` fallback for D3D11 without fences is not exercised on this machine: its D3D11
+    has 11.4 fences.
+  - The enhanced-barrier path is verified device-free only; the GPU run needs the Agility SDK build
+    above.
+  - The Vulkan per-aspect attachment layouts above are not exercised by the GPU test: no pass reads
+    depth while it writes stencil.
+  - P1.5: `OnResourcesReleased` for the current frame's passes (deviation 3); per-pass timers.
