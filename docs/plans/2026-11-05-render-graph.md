@@ -1,6 +1,7 @@
 # Render graph (RDG) for donut: implementation
 
-- Status: Approved (2026-11-05). Pass 1 in progress; pass 2 on hold until the user starts it.
+- Status: Approved (2026-11-05). Pass 1 in progress (P1.0-P1.3 done); pass 2 scheduled after it, by the
+  user's instruction of 2026-11-05.
 - Date: 2026-11-05
 - Design: [`../rdg-design.md`](../rdg-design.md) (Accepted 2026-11-05); decision record
   [ADR 0003](../adr/0003-render-graph-for-donut.md). The RHI changes get their own nvrhi ADR in step P1.0.
@@ -19,7 +20,8 @@ turns its section 15 into two passes:
   samples stop building.
 - **Pass 2: samples.** The graph versions of the samples, the A/B tooling, and every exit criterion
   that needs a sample: pixel comparison, sample budgets, the memory budget, and the plan-cache
-  decision. **On hold:** it starts only when the user says so.
+  decision. **Scheduled** (2026-11-05): it follows pass 1, with each step after the pass-1 steps it
+  needs.
 
 **Decided in the design; do not re-litigate:** the access vocabulary with `UAVRead`/`UAVWrite`
 (6.1); `IResource` without a type tag, dispatched with `QueryInterface` (8.1); `ResourceBarrier` and
@@ -179,22 +181,66 @@ entry per backend, each creating its device through `createDeviceOnAdapter`.
 - `rdg_bench` numbers for every 10.3 budget that needs no sample, recorded with the commit hashes.
 - Every sample still builds; one D3D12 and one Vulkan sample smoke-run in Debug.
 
-## Pass 2: samples (on hold)
+## Pass 2: samples (scheduled)
 
-Starts only on the user's instruction. Planned content, to be detailed then:
+Scheduled after pass 1 on 2026-11-05. The steps run in this order. Each starts when the pass-1 steps
+it needs are done, and P2.0 needs none. Same conventions as pass 1: one GPU process at a time,
+validation claims from Debug runs with the layer confirmed loaded, one commit per step and repository.
 
-- Reference captures and timings from the unchanged main checkout (screenshots on `-d3d11`, `-d3d12`,
-  `-vk`; frame times), one GPU process at a time.
-- `deferred_shading_rdg`, `variable_shading_rdg` and `async_compute_rdg` in ethereal-samples, built on
-  `app::RenderGraphLayer` and `FrameData`.
-- Deterministic options (`-fixedstep`, `-frames N`, `-screenshot`) and `tools/ab_compare.py`.
-- Design step 5's exit: pixel-identical images on D3D12, Vulkan and D3D11; 120 Debug frames with zero
-  validation messages; the barrier, CPU and GPU budgets of 10.3; the frame cost with and without the
-  plan cache, and the decision to keep or remove the cache (7.7).
-- Design step 6's exit: the memory budget on the bloom/SSAO graph, the GPU-time budget, async SSAO and
-  split barriers measured on and off, and the decision on Vulkan ownership transfers versus
-  `CONCURRENT` (6.8).
-- Design step 7's exit: the executor and parallel-recording budgets measured in the samples.
+### P2.0 References and A/B tooling (no pass-1 dependency)
+
+- Deterministic options in the original samples: `-fixedstep`, `-frames N`, `-screenshot`.
+- `tools/ab_compare.py`: a pixel comparison of two screenshots, with a report of the differing pixels.
+- The Vulkan swap chain gains `eTransferSrc` where the surface supports it (known issues). Without it,
+  Vulkan screenshots are a validation error.
+- Reference captures and timings from the unchanged main checkout: screenshots on `-d3d11`, `-d3d12`
+  and `-vk`, and frame times (10.4 protocol: Release, NVIDIA adapter, median of 300 frames after 100,
+  runs alternated).
+- **Exit:** reference images and timings, with commit hashes, in the execution record; `ab_compare.py`
+  reports identical for two captures of the same build.
+
+### P2.1 `deferred_shading_rdg` (design step 5; needs P1.4, P1.5)
+
+- The graph version of the deferred-shading sample on `app::RenderGraphLayer` and `FrameData`, through
+  the passes' `AddToGraph`; the visualizer and timers enabled.
+- **Exit (design step 5):**
+  - images identical to the originals on D3D12, Vulkan and D3D11;
+  - 120 Debug frames with zero validation messages, the layer confirmed loaded;
+  - barriers per frame no more than the original, each with a reason;
+  - CPU and GPU frame time no more than the original;
+  - executor overhead within 0.2 ms, measured on an empty-body variant;
+  - frame cost with and without the plan cache recorded, and the cache kept or removed on those
+    numbers (7.7).
+
+### P2.2 `variable_shading_rdg` (design step 5; needs P1.5)
+
+- The graph version of the variable-shading sample: shading-rate surfaces as `ShadingRateRead`
+  accesses.
+- **Exit:** as P2.1, for this sample.
+
+### P2.3 `async_compute_rdg` (design step 6; needs P1.6)
+
+- A bloom/SSAO graph with async SSAO, split barriers and the Placed tier on D3D12.
+- **Exit (design step 6):**
+  - the memory budget of 10.3 on the bloom/SSAO graph;
+  - the GPU-time budget;
+  - Vulkan synchronisation validation clean, across the frame boundary included;
+  - async SSAO, split barriers and the Placed tier each measured on and off;
+  - Vulkan ownership transfers kept, or replaced by the `CONCURRENT` fallback, on measurements (6.8).
+    P1.3's separate-family result, where async SSAO is demoted by the default `LatticePolicy`, is an
+    input to that decision.
+
+### P2.4 Parallel recording in the samples (design step 7; needs P1.7)
+
+- The samples record segments on worker threads through `ExecuteDesc`.
+- **Exit (design step 7):** the executor and parallel-recording budgets of 10.3, measured in the
+  samples.
+
+### Pass 2 verification
+
+- Release and Debug builds of the whole worktree; the full ctest matrix.
+- The A/B comparisons and the budget numbers of P2.1-P2.4 in the execution record, with commit hashes.
+- WaveWorks' Debug build (known issues), if the user asks for it in this pass.
 
 ## Execution record
 
@@ -321,6 +367,100 @@ ethereal-samples `d5bad16`, one commit each.
     - With `--screenshot`, the Vulkan run reports the back buffer's missing `TRANSFER_SRC` usage
       (known issues). That is older than this plan.
 
+*P1.3 as built (2026-11-05).* The device-free graph core is in ethereal-donut; nvrhi's `abi_lint.py`
+gained the option that lints it.
+- **Headers** (`include/donut/render`): `RenderGraph.h`, `RenderGraphLambdaPass.h` and
+  `RenderGraphFrameData.h`. They follow design section 12, plus these additions, which were summarised
+  to the user before the sources:
+  - the `Access` bits of 6.1;
+  - `BackendProfile`, `LatticePolicy` and `GetReferenceProfile` with six device-free profiles;
+  - `CompileOptions`, `DebugFlags`, `ScheduleFlags` and `ExecuteDesc`;
+  - the `ICompiledRenderGraph` queries. Barriers are device-free `PlanBarrier`s that name graph resource
+    indices; the executor lowers them once per plan. RPS's counterpart is
+    `RpsCmdDiagnosticInfo::transition`;
+  - the `IResourceRegistry` methods;
+  - the device-free import stand-ins `ImportTextureDesc` and `ImportBufferDesc`;
+  - `GetFrameIndex` and `GetDiagnostics`;
+  - `VerifyPlan` with an optional previous plan;
+  - `AddLambdaPassWithPrepare` and the optional `outPass` parameter.
+
+  Added while implementing: `BackendProfile::resourceHeapTier`, for the D3D12 tier-1 heap classes of 7.5.
+- **Sources** (`src/render`):
+
+  | File | Contents |
+  | --- | --- |
+  | `RenderGraphInternal.h`, `RenderGraphCompile.h` | the concrete classes, the frame arena, the compile state |
+  | `RenderGraph.cpp` | recording, the setup context, the structural hash, `Compile` and `Execute` |
+  | `RenderGraphCompiler.cpp` | phases 1-5 and 7, the plan and its queries |
+  | `RenderGraphTransitions.cpp` | phase 6 |
+  | `RenderGraphProfile.cpp` | 9.2 and the lattice |
+  | `RenderGraphRegistry.cpp` | persistent and history records; the bounded LRU plan cache |
+  | `RenderGraphVerifier.cpp` | 11.1 |
+  | `RenderGraphDump.cpp` | the JSON and Graphviz dumps of 11.3 |
+
+  `Execute` returns `FE_UNSUPPORTED` without a device, and `FE_NOT_IMPLEMENT` until P1.4.
+- **Two cache levels.**
+  - The *structure*, per structural hash: queue assignment, including the `LatticePolicy` check that
+    demotes an async pass whose barriers cost more than its overlap gains; the superset's lifetimes; the
+    memory plan. Every pass-enable mask shares it.
+  - The *plan*, per mask: policies and culling, schedule, transitions, segments.
+- **The verifier shares no code with the walk.** It replays the plan's segments in submission order
+  against per-subresource state machines of the physical resources, with happens-before between queues
+  taken from the plan's fence waits only. A fence round-trip back to the same queue also orders memory.
+  - Its first frame learns the states the plan assumes at frame start; later frames check them. A
+    history is replayed through its whole rotation.
+  - A plan switch replays the old plan's frame, then the registry's patch (shared physical resources
+    moved to the states the new plan expects at their first touch, and a full wait for the old frame),
+    then the new plan.
+- **Tests** (ethereal-donut `tests/`):
+  - `test_render_graph`, 31 tests;
+  - `rdg_bench`, and a `rdg_bench_smoke` ctest entry;
+  - `donut_render_graph_header_hygiene` (3.2);
+  - `donut_render_graph_abi_lint`, which runs nvrhi's `abi_lint.py --api-header` over `RenderGraph.h` with
+    the nvrhi headers' types known; a planted by-value struct and a missing `noexcept` were detected;
+  - `donut_render_graph_header_tus`, one compile-only `/W4` unit per header.
+- **The corpus:** 31 hand-written graphs and 20 seeded random ones, 51 in all.
+  - Each runs on the six reference profiles; CUDA skips the 20 that have raster passes. Profiles with
+    the Placed tier run with and without it. That makes 377 verified plans.
+  - Each verified plan is replayed for at least two frames.
+  - Each also switches to its variant (another mask or another graph): 377 verified plan switches.
+  - Negative test: `SkipAliasingBarriers` makes the verifier fail on the aliasing chain.
+- **Golden barrier lists** in `tests/src/render/golden/deferred_frame_6_11.txt` (under `src/`, because
+  `test_vfs` expects the tests folder to hold only `include/` and `src/`): four profiles, without and
+  with async SSAO, and a separate-family plan with async SSAO forced. Reviewed against 6.11:
+  - D3D12 without async: one depth read state for all four readers. GB0, GB1, GB3 and MV are split
+    from GBuffer's epilogue to their consumers.
+  - D3D12 with async SSAO: the three groups of 6.11, in its order. `DEPTH_READ → NON_PIXEL` sits in
+    GBuffer's epilogue, ahead of SSAO's signal, and the splits are joined across the segment boundary.
+  - Vulkan with one family: one depth layout barrier, with or without async SSAO.
+- **Deviations from the design text:**
+  1. 6.11's depth read state is `DepthRead|NonPixelShaderResource`: SSAO and DeferredLighting are
+     compute passes in the encoded frame. The discard back to `DepthWrite` at frame start is a second
+     depth transition per frame; the design counted only the read one.
+  2. With a separate compute family, depth readers on both queues split into groups as on D3D12,
+     because nvrhi's lowering adds a depth read's fragment-test stages to an acquire on the compute
+     queue. The default `LatticePolicy` then demotes async SSAO, with a warning; 6.11 expected one layout
+     barrier and two ownership pairs. The golden file records the forced plan. This feeds pass 2's
+     ownership-versus-`CONCURRENT` decision (6.8).
+  3. With one Vulkan family, a read group that spans queues holds a state legal on its first reader's
+     queue, where the transition runs.
+  4. The plan-switch patch is the registry's work at execution (P1.4): its tracked per-subresource
+     states, plus a full wait for the previous frame. The verifier models it; there is no device-free
+     patch builder.
+  5. `ScheduleFlags::GroupReads` is accepted but does not reorder yet.
+  6. `Compile` runs the verifier only under `StrictValidation`, not on every Debug miss.
+  7. `HostRead` lowers to `CopyDest`, because D3D12 readback heaps never leave `COPY_DEST`.
+  8. Hazard rules beyond 6.5:
+     - A UAV read followed by a UAV write gets a UAV barrier (reason WAR): a hazard 6.5's list omits.
+     - On Vulkan, a write after a write in one state gets a same-layout barrier. D3D12 relies on its
+       implicit ordering of non-UAV writes in one state.
+  9. On D3D12 legacy, a discard is recorded only into RT, DS or UAV states, as `DiscardResource`
+     requires. Other first uses are full writes.
+  10. The overlap rule of 6.2 is checked on the declared regions in phase 1, so profiles that ignore
+      planes still accept a stencil write beside a depth read.
+  11. Culling keeps earlier writers alive behind a `FullWrite` that covers only part of a resource.
+- **Exit (design step 3):** met. The numbers are in the verification results below.
+
 ## Verification results
 
 **P1.1 (2026-11-05)**, on the NVIDIA RTX 4050 Laptop GPU, Windows 10 19045:
@@ -336,6 +476,18 @@ ethereal-samples `d5bad16`, one commit each.
 | ctest, Debug | — | 49/49 (the 45 of the baseline and the four `explicit_barriers_*`) |
 | full Release build | — | 828 steps, 76 executables and libraries linked |
 | ctest, Release | — | 49/49, including `nvrhi_abi_lint`, `nvrhi_abi_lint_selftest`, `nvrhi_header_hygiene`, `cuda_*` and `cuda_interop-*` |
+
+**P1.3 (2026-11-05)**, device-free (no GPU process):
+
+| Run | Result |
+| --- | --- |
+| `test_render_graph`, Release and Debug | 31/31: 51 graphs, 377 verified plans, 377 verified plan switches; golden 6.11 lists identical |
+| `rdg_bench --gate`, Release, D3D12 legacy profile, medians | compile on a miss: 487 µs for 64 passes / 256 resources (budget 1 ms) and 14.5 ms for 1024 passes / 4096 resources (16 ms); frame on a cache hit: 21.5 µs (50 µs); frame without the cache: 512 µs (reported); 0 heap allocations per steady-state frame (0); all budgets met |
+| `donut_render_graph_abi_lint`, `donut_render_graph_header_hygiene`, `donut_render_graph_header_tus` | pass; the lint checks 7 interfaces and 63 virtual functions of `RenderGraph.h` |
+| full Release build | complete (a rerun after applocal "file in use" link failures, the known flake) |
+| ctest, Release | 53/53: the 49 of P1.2 and `test_render_graph`, `rdg_bench_smoke`, `donut_render_graph_header_hygiene`, `donut_render_graph_abi_lint` |
+| full Debug build | everything except the 5 WaveWorks steps (known issues) |
+| ctest, Debug | 53/53 |
 
 ## Known issues and follow-ups
 
@@ -358,3 +510,12 @@ ethereal-samples `d5bad16`, one commit each.
   supports it. It is not part of P1.1 or P1.2, and the screenshots of pass 2 need it.
 - **Enhanced barriers in the worktree build** need `NVRHI_WITH_RTXMU=OFF` and the Agility SDK. Until
   the aggregate build can turn RTXMU off, the enhanced path is verified with the standalone nvrhi build.
+- **P1.3 follow-ups** (graph core):
+  - The 1024-pass compile takes 14.5 ms against a 16 ms budget. Profile it before P1.6 adds phases.
+  - `PlanResource::entry` and `creation` are per resource: the frame-start state of the first unit. P1.4
+    needs per-subresource creation states for resources whose mips, slices or planes start in different
+    states.
+  - An import whose last use is on the compute queue, and whose exit state the compute queue cannot
+    hold, needs a later graphics pass; the compile fails otherwise. The executor could add a trailing
+    graphics batch instead.
+  - `ScheduleFlags::GroupReads` does not reorder yet.
