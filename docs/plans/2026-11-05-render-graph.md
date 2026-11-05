@@ -1,7 +1,8 @@
 # Render graph (RDG) for donut: implementation
 
-- Status: Approved (2026-11-05). Pass 1 done and verified (P1.0-P1.7); pass 2 in progress, scheduled by the
-  user's instruction of 2026-11-05.
+- Status: Approved (2026-11-05). Pass 1 done and verified (P1.0-P1.7); pass 2 done and verified (P2.0-P2.4),
+  scheduled by the user's instruction of 2026-11-05. Nothing is pushed: origin/rdg needs a force-push, which
+  is the user's call.
 - Date: 2026-11-05
 - Design: [`../rdg-design.md`](../rdg-design.md) (Accepted 2026-11-05); decision record
   [ADR 0003](../adr/0003-render-graph-for-donut.md). The RHI changes get their own nvrhi ADR in step P1.0.
@@ -1279,6 +1280,34 @@ alone. The builds, ctest runs, donut GPU tests and benchmarks are those of P1.7,
 | Parallel recording, 64 passes, 4 threads, ≤ 60 % of one list | `rdg_bench --parallel`, Release | D3D12 50.5 % (75.7 / 150.0 µs); Vulkan 37.8 % (48.8 / 129.0 µs) |
 
 The executor overhead, barrier, frame-time and memory budgets need the samples: P2.1-P2.4.
+
+**Pass 2 verification (2026-11-05)** at ethereal-nvrhi `3d4e449`, ethereal-donut `5deb2b2`, ethereal-samples
+`a154a89` (aggregate `098b100`), on the NVIDIA RTX 4050 Laptop GPU, Windows 10 19045. Each GPU process ran
+alone.
+
+| Item | Run | Result |
+| --- | --- | --- |
+| Builds | full Release and Debug builds of the worktree | Release complete. Debug complete except WaveWorks (known issues; not fixed, as the user did not ask). Applocal "file in use" flakes on five links were rerun |
+| ctest | Release and Debug | 63/63 each |
+| nvrhi GPU tests | `explicit_barriers_d3d12` and `_vulkan`, Debug | PASS. "the D3D12 debug layer is loaded"; "the Vulkan validation layer is loaded", with the deliberate hazard reported as `SYNC-HAZARD-WRITE-AFTER-WRITE`. Includes P2.3's `testTimerQueriesOnTwoQueues` |
+| donut GPU tests | `test_render_graph_gpu` on d3d12, vulkan, d3d11 and cuda, Debug and Release | PASS (555 checks on Vulkan, Debug) |
+| `rdg_bench --gate` | Release, D3D12 legacy profile | Compile miss, 64 passes: 485.9 µs (budget 1 ms). 1024 passes: 14.5 ms (16 ms). Cache hit: 20.8 µs (50 µs). No cache: 444.7 µs (reported). 0 allocations |
+| `rdg_bench --parallel --gate` | Release | D3D12 43.2 %, Vulkan 37.0 % of one list (budget 60 %) |
+
+The 10.3 budgets in the samples (details in the steps' as-built entries):
+
+| Budget | `deferred_shading_rdg` (P2.1) | `variable_shading_rdg` (P2.2) | `async_compute_rdg` (P2.3, P2.4) |
+| --- | --- | --- | --- |
+| Images against the original | identical on D3D12, Vulkan and D3D11 | within the original's own three varying pixels | within the frame's own variation (against `-immediate`) |
+| Validation, 120 Debug frames, layer loaded | clean | clean | clean in 9 configurations; with `-parallel 4` in 4 more |
+| Barriers per frame ≤ original | D3D12 14 / 15; Vulkan 19 / 27 | D3D12 15 / 20 | no original |
+| GPU frame ≤ original | met; D3D12 within noise (+0.6 %) | met on D3D12; Vulkan +3 %, within noise | met on D3D12 (+0.7 %, lower in 9 of 20 rounds); Vulkan +2.3 % (deviation) |
+| CPU frame ≤ original | met; D3D11 +1.3 % (deviation) | met on D3D12; Vulkan within noise | equal on D3D12 (+0.008 ms) |
+| Executor overhead ≤ 0.2 ms | 0.025-0.041 ms; with 4 threads 0.040 ms (D3D12), 0.025 ms (Vulkan) | 0.027-0.047 ms; with 4 threads 0.045 / 0.024 ms | not measured (no empty-body variant) |
+| Plan cache (reported, 7.7) | kept: 0.069 against 0.112 ms (D3D12) | kept: 0.104 against 0.145 ms | |
+| Peak transient memory ≤ 60 % | | | 59.8 % with SSAO on graphics, at the limit; 68 % with async SSAO, by design 7.4/7.5 |
+| `create*` calls after warm-up | | | 0 |
+| Parallel recording, 4 threads ≤ 60 % | 71-73 % (3 small passes) | 75-82 % (one heavy pass) | D3D12 58.6 %, Vulkan 53.4 % |
 
 ## Known issues and follow-ups
 
