@@ -1086,6 +1086,80 @@ timer fix (ethereal-donut `7b2c20f`) and an nvrhi fix (ethereal-nvrhi `3d4e449`)
      exercise the ownership transfers.
 - **Exit:** met, with deviations 2 and 3.
 
+*P2.4 as built (2026-11-05).* Parallel recording in the samples (ethereal-samples `a154a89`), with three
+executor changes (ethereal-donut `5deb2b2`).
+- **donut:**
+  - `RenderGraphWorkerPool.h`: P1.7's test pool, now a public donut_render header, so that the samples
+    and the tests share it. The header TU and the hygiene test cover it.
+  - **Batched submissions** (P1.7's follow-up). Consecutive segments of one queue share one
+    `IDevice::submit` when:
+    - every segment after the first waits for nothing; and
+    - nothing waits for one before the last (`PlanSegment::signals`).
+
+    Waits, the signals anything waits for, and plan order are unchanged. Before this, a 19-segment
+    frame submitted each segment alone, which cost 0.3 ms on D3D12. `RunStatistics::submissions` counts
+    the calls. `donut_passes` checks that the parallel frame's 8 segments take one submission where
+    fences exist, and 8 on D3D11.
+  - **Task weights.** The recording tasks are balanced by each segment's recording time in the previous
+    frame, not by pass counts: five cheap bloom passes outweighed a shadow cascade's draws. Until every
+    segment has been recorded once, pass counts stand in. `rdg_bench --parallel --gate` now gives
+    D3D12 43.2 % of one list (P1.7: 50.5 %) and Vulkan 37.0 % (37.8 %).
+- **Samples:**
+  - `sample_harness/GraphRecording.h` adds `-parallel N`: the caller and N - 1 workers. It also adds
+    `-granularity G` (`CompileOptions::recordGranularity`), which defaults to 3 with `-parallel`.
+  - `deferred_shading_rdg`, `variable_shading_rdg` and `async_compute_rdg` take both switches. Their
+    `-graphstats` report the recording time and the record tasks.
+  - `async_compute_rdg` gives each shadow cascade its own `DepthPass`, pass context and draw strategy.
+    A pass object's uses share one task (10.1), and the cascades hold most of the frame's draws. The
+    passes and their GPU work are those P2.3 measured.
+- **Results** (Release, NVIDIA, `-notimers`, alternating rounds, medians of the per-run medians):
+  - *Parallel-recording budget* (10.3: ≤ 60 % of one list's recording time), `async_compute_rdg`, 4
+    threads:
+
+    | Granularity | D3D12 (6 rounds) | Vulkan (6 rounds) |
+    | --- | --- | --- |
+    | 1 (19 segments) | 65.6 % | 58.6 % |
+    | 2 | 60.2 % | 53.1 % |
+    | 3, the default | 56.7 % | 53.0 % |
+    | 4 | 52.1 % | 56.2 % (3 tasks) |
+    | 2, three threads | 69.5 % | 65.2 % |
+
+    - At the default, over 12 more rounds: D3D12 0.188 → 0.110 ms, **58.6 %** (9 segments, 4 tasks).
+      Vulkan 0.177 → 0.094 ms, **53.4 %** (7 segments).
+    - Record plus submit: D3D12 0.265 → 0.192 ms, Vulkan 0.197 → 0.115 ms.
+    - Each segment opens, closes and sets up a list, so finer segments lose on D3D12.
+    - `variable_shading_rdg` records one heavy forward pass: 75 % of serial on D3D12, 82 % on Vulkan, at
+      granularity 1. `deferred_shading_rdg` has three small passes: 71-73 %.
+  - *Frame time,* same 12 rounds: the frame is GPU-bound at ~1.85 ms, and parallel recording leaves it
+    where it was:
+    - D3D12 GPU −0.032 ms (lower in 8 of 12);
+    - Vulkan GPU +0.025 ms (lower in 2 of 12; seven lists against one).
+  - *Executor overhead* (10.3: ≤ 0.2 ms; record plus submit with empty bodies), 10 rounds:
+
+    | Sample | D3D12: serial / 4 threads | Vulkan: serial / 4 threads |
+    | --- | --- | --- |
+    | `deferred_shading_rdg` | 0.041 / 0.040 ms | 0.024 / 0.025 ms |
+    | `variable_shading_rdg` | 0.048 / 0.045 ms | 0.025 / 0.024 ms |
+
+  - *Validation:* 120 Debug frames with `-parallel 4`, zero messages, with each layer's DLL seen
+    loaded. On D3D12: `async_compute_rdg` (Placed, granularity 3 and 1), `variable_shading_rdg` and
+    `deferred_shading_rdg`. On Vulkan with `VK_LAYER_VALIDATE_SYNC=1`: `async_compute_rdg` with forced
+    async SSAO and with demoted SSAO at granularity 1, `variable_shading_rdg` and
+    `deferred_shading_rdg`.
+  - *Images:* parallel recording against serial, identical on Vulkan for both samples and on D3D12 for
+    `deferred_shading_rdg`. One pixel differs in `variable_shading_rdg` on D3D12, at (1015, 272), one of
+    the three pixels the original varies in (P2.2).
+  - The GPU tests, `test_render_graph` (32 tests) and `rdg_bench --parallel --gate` pass on the final
+    executor.
+- **Deviations:**
+  1. The parallel-recording budget is defined on rdg_bench's 64 passes. In the samples it is met in the
+     19-pass `async_compute_rdg` at granularity 2-4 (2-3 on D3D12). It is not met in the 5-pass and
+     3-pass samples, where one pass, or very little work, dominates.
+  2. With 4 threads the Vulkan GPU frame is 0.025 ms (1.4 %) above serial recording; its frame time is
+     not part of the exit.
+- **Exit:** met. The executor overhead is 0.024-0.048 ms against 0.2. Parallel recording is at 58.6 %
+  (D3D12) and 53.4 % (Vulkan) of one list in `async_compute_rdg`, at the default granularity.
+
 ## Verification results
 
 **P1.1 (2026-11-05)**, on the NVIDIA RTX 4050 Laptop GPU, Windows 10 19045:
@@ -1264,8 +1338,11 @@ The executor overhead, barrier, frame-time and memory budgets need the samples: 
   - nvrhi's Vulkan `getTimerQueryTime` marks a query not started, and D3D12's does not. The executor
     no longer depends on it; the backends could agree.
   - `RegistryStatistics::pooledBytes` stays 0; the Pooled tier's memory is not measured.
+- **P2.4 follow-ups** (parallel recording):
+  - Each segment opens and closes its own list. Recording a segment's passes into a list that another
+    task continues would remove the per-segment cost that limits fine granularity on D3D12.
+  - The workers sleep between frames; a frame's first task waits for them to wake.
 - **P1.7 follow-ups** (parallel recording):
-  - Consecutive segments of one queue with no waits between them could share one submission. Each is
-    submitted alone now, with its own fence signal.
+  - Done in P2.4: consecutive segments of one queue with no waits between them share one submission.
   - The steady-state allocation test runs serially; a parallel variant would confirm the executor's
     scratch reuse by measurement.
