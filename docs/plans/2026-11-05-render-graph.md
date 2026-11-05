@@ -788,6 +788,65 @@ one Vulkan fix (`4b1437a`).
   on Vulkan (budget 60 %). The `BindingCache` and `BlitTexture` concurrency tests pass on every backend
   that records in parallel; on D3D11, `BindingCache` only.
 
+*P2.0 as built (2026-11-05).* Deterministic runs and A/B tooling (ethereal-samples `1ac249c`, ethereal-nvrhi
+`27b93fb`, aggregate `tools/ab_compare.py`), and the references.
+- **Deterministic options.** `ethereal-samples/src/sample_harness/SampleHarness.h`, used by
+  `deferred_shading` and `variable_shading`:
+  - `-frames N` exits after N frames; `-screenshot F` saves the last frame's back buffer. On Vulkan the
+    swap chain is BGRA8, so the back buffer is blitted to RGBA8 first.
+  - `-fixedstep` gives `Animate` 1/60 s per frame.
+  - `-timings F` writes, as JSON, the median CPU frame time and the median GPU frame time of the frames
+    after `-warmup N` (default 100). The CPU time is measured from one frame's start to the next; the
+    GPU time is a timer query from a layer in front of the sample's to one behind it.
+  - The harness layers render unfocused, so a scripted run does not stall.
+  - `async_compute` is left out: a 100 Hz producer thread drives it, so no run of it repeats. P2.3's
+    sample is a new bloom/SSAO graph, not a port of it.
+- **`tools/ab_compare.py A B [--tolerance N] [--diff F]`** compares two images pixel by pixel. It reports
+  identical, or the differing pixels, the largest channel difference and their bounding box; exit code
+  1 beyond the tolerance. It ignores alpha unless `--alpha` is given. Two captures of one build
+  (`deferred_shading -d3d12`, Debug) are identical.
+- **Vulkan screenshots.** nvrhi's Vulkan swap-chain images gain `eTransferSrc` where the surface allows
+  it (the known issue). The Debug runs that save a Vulkan back buffer are clean under the validation
+  layer.
+- **References from the unchanged main checkout.** The main checkout's commits (aggregate `264ac18`,
+  ethereal-nvrhi `123d105`, ethereal-donut `4f4b31c` with shader-tool `b5bec4b`, ethereal-samples
+  `37ac258`) were extracted with `git archive` into `D:\ps\repo\ethereal-rdg-baseline`, outside every
+  repository, so that no checkout or worktree changed. The harness was added to its two samples,
+  translated to the pre-rename layer API (`IRenderPass`, `AddRenderPassToBack`); nothing else changed.
+  It was built in Release with the worktree's configure flags.
+  - Captures: `-fixedstep -frames 400 -screenshot`, Release, NVIDIA adapter. They are kept in
+    `D:\ps\repo\ethereal-rdg-baseline\references` (SHA-256 prefixes):
+
+    | Image | SHA-256 |
+    | --- | --- |
+    | `deferred_shading-{d3d11,d3d12,vk}.png` | `92FCBAA9CE91CB13` (the three are identical) |
+    | `variable_shading-d3d12.png` | `FBC4B407FC41FB36` |
+    | `variable_shading-vk.png` | `1F59F9E9A061ED44` |
+
+  - The first `variable_shading -d3d12` run after the build differed from every later run in 4 pixels
+    by 1 (kept as `variable_shading-d3d12.first-run.png`). Later baseline runs and the worktree's runs
+    are identical to each other, so the reference is a later run.
+  - Timings, 10.4 protocol: Release, no validation, `-frames 401 -warmup 100` (300 frames), medians;
+    two rounds, the second in reverse order:
+
+    | Sample | CPU frame, ms (round 1 / 2) | GPU frame, ms (round 1 / 2) |
+    | --- | --- | --- |
+    | `deferred_shading -d3d11` | 0.505 / 0.505 | 0.390 / 0.390 |
+    | `deferred_shading -d3d12` | 0.300 / 0.302 | 0.249 / 0.246 |
+    | `deferred_shading -vk` | 0.346 / 0.342 | 0.275 / 0.276 |
+    | `variable_shading -d3d12` | 0.820 / 0.792 | 0.765 / 0.737 |
+    | `variable_shading -vk` | 0.809 / 0.822 | 0.755 / 0.767 |
+
+  - The worktree's original samples, after pass 1, are identical to these references on every API:
+    the bodies P1.5 shared between the immediate and the graph paths render the same.
+- **Deviations:**
+  1. The references come from the main checkout's commits plus the harness, not from the main checkout
+     itself, which has no deterministic options. The harness is the only change.
+  2. The timings report the CPU frame (start to start) and the GPU frame, not the sample's own frame
+     timer: the original samples have none.
+- **Exit:** met. Reference images and timings, with commit hashes, are above; `ab_compare.py` reports
+  identical for two captures of the same build.
+
 ## Verification results
 
 **P1.1 (2026-11-05)**, on the NVIDIA RTX 4050 Laptop GPU, Windows 10 19045:
@@ -922,8 +981,8 @@ The executor overhead, barrier, frame-time and memory budgets need the samples: 
   `eDepthReadOnlyStencilAttachmentOptimal`. nvrhi's rendering setup derives one layout per attachment
   from the tracked state. Address it in P1.4 if the executor's Native mode produces that split, or have
   the graph keep both planes together for attachments.
-- **Vulkan swap-chain images lack `TRANSFER_SRC` usage** (ethereal-nvrhi `vulkan-swapchain.cpp`,
-  since ADR 0014's `123d105`). They are created with `eColorAttachment | eTransferDst | eSampled`, so a
+- **Fixed in P2.0 (ethereal-nvrhi `27b93fb`): Vulkan swap-chain images lacked `TRANSFER_SRC` usage**
+  (ethereal-nvrhi `vulkan-swapchain.cpp`, since ADR 0014's `123d105`). They are created with `eColorAttachment | eTransferDst | eSampled`, so a
   back-buffer readback (the GVDB `--screenshot` path) is a validation error on Vulkan
   (VUID-vkCmdCopyImageToBuffer-srcImage-00186). The fix is to add `eTransferSrc` where the surface
   supports it. It is not part of P1.1 or P1.2, and the screenshots of pass 2 need it.
