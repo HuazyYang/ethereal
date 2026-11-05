@@ -1,6 +1,6 @@
 # Render graph (RDG) for donut: implementation
 
-- Status: Approved (2026-11-05). Pass 1 in progress (P1.0-P1.5 done); pass 2 scheduled after it, by the
+- Status: Approved (2026-11-05). Pass 1 in progress (P1.0-P1.6 done); pass 2 scheduled after it, by the
   user's instruction of 2026-11-05.
 - Date: 2026-11-05
 - Design: [`../rdg-design.md`](../rdg-design.md) (Accepted 2026-11-05); decision record
@@ -650,6 +650,87 @@ one Vulkan fix (`bfb25e3`).
   device-free golden access lists pass. A headless frame of every pass type runs clean on three
   backends. The immediate entry points are unchanged; their bodies are now shared with the graph path.
 
+*P1.6 as built (2026-11-05).* The Placed tier executes (ethereal-donut `29cf8f8`). ethereal-nvrhi gained
+`Feature::MixedResourceHeaps` and a device-removed reason in its D3D12 message (`68b59e1`). Async compute
+(6.8) and split barriers (6.4) were already compiled and executed by P1.3 and P1.4; this step runs them on
+the GPU across frames, beside the Placed tier.
+- **Probe (7.5).** `ComputeBackendProfile` on D3D12 sets `maxMemoryTier` to Placed when the device has
+  `Feature::VirtualResources`. It takes `resourceHeapTier` from the new `Feature::MixedResourceHeaps`:
+  D3D12 resource heap tier 2, and always true on Vulkan. Vulkan, D3D11 and CUDA stay Pooled. Every
+  backend reports the placement estimate (`placedPeakBytes`).
+- **Placement (executor).** It runs once per structure instance, which now owns the heaps:
+  - Each physical object the plan placed becomes a virtual texture or buffer. Its actual size and
+    alignment come from `getTextureMemoryRequirements` and `getBufferMemoryRequirements`.
+  - A first-fit placement per planned heap, largest first, uses those numbers. Two objects share bytes
+    only if their lifetimes are disjoint and the plan also placed them in shared bytes. The plan's
+    aliasing barriers therefore cover every actual overlap.
+  - The heaps (`DeviceLocal`) are sized to the actual placement, and the resources are bound.
+  - On D3D12 resource heap tier 1, only render-target and depth textures are placed; buffers and other
+    textures stay pooled (deviation 2).
+  - If a heap or a binding fails, every object is dedicated instead, with a warning.
+  - Placed objects never enter the free pool. When the instance's plans leave the cache, the registry
+    retires its heaps and placed resources until every queue's fence passes the last frame's values
+    (7.5). Barrier arrays hold raw pointers, and nvrhi's explicit barriers keep no references.
+- **Aliasing barriers (6.7).** Once per plan instance, after the transients' slots are patched:
+  - A barrier's `before` stays only if it actually overlaps the incoming resource; otherwise it is null.
+  - A barrier whose incoming resource ended up unplaced is skipped when recorded.
+  - Then the executor checks the actual placement: every resource whose bytes another placed resource
+    shares must start with an aliasing barrier. Each uncovered resource is reported as an error.
+- **Tests:**
+  - The verifier corpus runs the Placed tier on both D3D12 heap tiers: 479 verified plans and 479 plan
+    switches (377 before).
+  - `heap_count` (design 14.8 item 16): one heap per queue on tier 2, one per queue and class on tier 1
+    (2 and 5 heaps), on D3D12 legacy and enhanced.
+  - `test_render_graph_gpu` gained:
+    - `testPlaced`. Buffers X and Y and targets A and B alias on the graphics queue. A buffer used only
+      by async passes gets a compute-queue heap, and one that crosses queues stays pooled. It runs 12
+      frames with frames in flight and reads every third back. Frames 8-9 compile with `NoAliasing` (a
+      second structure instance) and switch back. It runs on D3D12 at the device's tier and again
+      compiled for tier 1; on the other backends it checks that the opt-in falls back to Pooled. Eight
+      more frames alternate two placements with one cached plan, so that every frame retires the
+      other plan's heaps while earlier frames are in flight.
+    - `testSkipAliasingBarriers`: the executor's check reports X, Y, A and B, and the run with barriers is
+      clean.
+    - `testSplitBarriers`: A's transition is split around two passes, with 512² targets so that Vulkan
+      splits too, and four frames in flight between readbacks.
+    - `testVvlEventWitness` (below).
+    - Harness switches: `RDG_GPU_ONLY=<name>` runs some tests; `RDG_GPU_DUMP=1` prints each new plan;
+      `RDG_D3D12_NO_GBV=1` turns GPU-based validation off. A D3D12 run that throws prints the debug
+      layer's stored messages.
+- **Found on the way:**
+  - *A VVL false positive.* VVL 1.4.357 reports a split barrier's `vkCmdWaitEvents2` layout transition
+    as `SYNC-HAZARD-WRITE-AFTER-READ` against a read in an earlier submission. It does so even when a
+    full `ALL_COMMANDS` → `ALL_COMMANDS` barrier separates the two: VVL's own `read_barriers` then list
+    every stage. By the specification the wait's first scope is everything before its `vkCmdSetEvent2`
+    in submission order, and execution dependencies chain across submissions. Nothing races.
+    `testVvlEventWitness` records the pattern on raw nvrhi, without the graph, and asserts that VVL
+    still reports it. The test's message handler sets aside exactly this report: `command =
+    vkCmdWaitEvents2`, `hazard_type = WRITE_AFTER_READ`, `access = SYNC_IMAGE_LAYOUT_TRANSITION`, found
+    at submit time. It matches syncval's structured properties
+    (`VK_KHRONOS_VALIDATION_SYNCVAL_MESSAGE_EXTRA_PROPERTIES`). When VVL stops reporting it, the
+    witness fails and the exemption goes.
+  - nvrhi's D3D12 "Device Removed!" names the reason (`DXGI_ERROR_INVALID_CALL` found the test's own
+    size mismatch on the way).
+- **Deviations from the plan and the design:**
+  1. The GPU aliasing test detects a missing barrier through the executor's check of the actual
+     placement, not through a debug layer. D3D12's debug layer and GPU-based validation do not track
+     aliasing: the Agility SDK 1.619 `d3d12sdklayers.h` has no aliasing message. The Placed tier runs on
+     D3D12 only. A content race would need long-running shaders and would not fail deterministically.
+  2. On D3D12 heap tier 1, the executor places render-target and depth textures only. nvrhi's
+     `createHeap` makes tier-1 heaps for those only, and `HeapDesc` has no heap class. The compiler still
+     plans all three classes, and the corpus verifies those plans.
+  3. The executor does not replay the plan's offsets: the actual sizes differ from the estimate (a
+     256-byte D3D12 placed buffer takes 64 KiB). Instead it places constrained by the plan's byte sharing.
+     Members of one exclusion group (7.4) whose lifetimes meet are kept apart in the actual placement,
+     where the plan let them share bytes: correct, but more memory.
+  4. The Vulkan GPU test sets aside the VVL false positive above.
+- **Exit:** met.
+  - Headless graphs with async passes (buffer chains, plan switches, the Placed test's compute heap) and
+    with split barriers run clean, frames in flight, under the D3D12 debug layer with GPU-based
+    validation and under Vulkan synchronization validation (the one VVL report above set aside).
+  - The verifier corpus covers the Placed tier on both D3D12 heap tiers.
+  - On the GPU, `SkipAliasingBarriers` makes the aliasing test fail.
+
 ## Verification results
 
 **P1.1 (2026-11-05)**, on the NVIDIA RTX 4050 Laptop GPU, Windows 10 19045:
@@ -710,6 +791,21 @@ one Vulkan fix (`bfb25e3`).
 | full Debug build | — | everything except WaveWorks (known issues) and one applocal flake |
 | ctest, Debug | — | 61/61 |
 
+**P1.6 (2026-11-05)**, the same machine; each GPU test ran alone.
+
+| Run | Layers confirmed | Result |
+| --- | --- | --- |
+| `test_render_graph_gpu d3d12`, Debug, legacy barriers (`enhanced barriers: 0`) | debug layer (`ID3D12InfoQueue`) and GPU-based validation | PASS, no messages. Placed: 2 heaps, 4 aliasing barriers, contents right in every frame read back; heap tier 1: 3 planned heaps, 1 created (targets); retirement clean. `SkipAliasingBarriers`: X, Y, A and B reported. Split: 1 split barrier, 4 frames in flight |
+| the Placed and negative tests again with the Agility SDK 1.619 runtime (`NVRHI_TEST_AGILITY_SDK_VERSION=619`) | as above, plus live `ID3D12InfoQueue1` messages | PASS |
+| `test_render_graph_gpu vulkan`, Debug | validation layer 1.4.357, `VK_LAYER_VALIDATE_SYNC=1`, hazard probe | PASS. The split test's frame-boundary reports and the witness's are the VVL false positive (4 set aside); everything else clean. Placed falls back to Pooled |
+| `test_render_graph_gpu d3d11` and `cuda`, Debug | nvrhi validation layer | PASS; Placed falls back to Pooled |
+| `test_render_graph`, Debug and Release | — | 32/32: 51 graphs, 479 verified plans and 479 plan switches; `heap_count` |
+| `rdg_bench --gate`, Release | — | miss 432 µs (64 passes), 14.5 ms (1024 passes); hit 21.1 µs; 0 allocations; all budgets met |
+| full Release build | — | complete (reruns after applocal "file in use" link failures) |
+| ctest, Release | — | 61/61 |
+| full Debug build | — | everything except WaveWorks (known issues), after applocal reruns |
+| ctest, Debug | — | 61/61 |
+
 ## Known issues and follow-ups
 
 - **WaveWorks does not build in Debug** (ethereal-samples, since `01b4945`, before this plan). The
@@ -752,3 +848,11 @@ one Vulkan fix (`bfb25e3`).
   - Persistent and history names of pass objects (ToneMapping's exposure, TAA's feedback) carry a
     per-process instance number. They are stable within a process, not across processes.
   - The Visualizer runs in pass 2's samples; no test drives it.
+- **P1.6 follow-ups** (Placed tier):
+  - **The VVL false positive** (`testVvlEventWitness`) is worth reporting to Khronos with the witness as
+    the reproduction; that is the user's call. When a VVL release stops reporting it, the witness fails
+    and the exemption in the test's message handler goes.
+  - D3D12 heap tier 1 places targets only (deviation 2). A heap class in nvrhi's `HeapDesc` would place
+    buffers and other textures too.
+  - The Placed tier with enhanced barriers runs device-free only (the RTXMU build above).
+  - Exclusion-group members do not share bytes in the actual placement (deviation 3).
