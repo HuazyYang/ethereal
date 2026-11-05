@@ -1,6 +1,6 @@
 # Render graph (RDG) for donut: implementation
 
-- Status: Approved (2026-11-05). Pass 1 in progress (P1.0-P1.6 done); pass 2 scheduled after it, by the
+- Status: Approved (2026-11-05). Pass 1 in progress (P1.0-P1.7 done); pass 2 scheduled after it, by the
   user's instruction of 2026-11-05.
 - Date: 2026-11-05
 - Design: [`../rdg-design.md`](../rdg-design.md) (Accepted 2026-11-05); decision record
@@ -731,6 +731,63 @@ the GPU across frames, beside the Placed tier.
   - The verifier corpus covers the Placed tier on both D3D12 heap tiers.
   - On the GPU, `SkipAliasingBarriers` makes the aliasing test fail.
 
+*P1.7 as built (2026-11-05).* Segments record on worker threads (ethereal-donut `df5dd96`); ethereal-nvrhi gained
+one Vulkan fix (`4b1437a`).
+- **Executor (10.1).** With `ExecuteDesc::parallelFor`:
+  - At most `workerCount` tasks record the segments (0: one per segment). Each task records whole
+    segments in plan order, and submission stays in plan order.
+  - A pass object records on one thread: the segments that share one (a pass's per-view uses) form a
+    group. The groups go to the tasks largest first, to the least loaded.
+  - The command lists, pass contexts and per-pass timer slots are taken on the calling thread before any
+    task runs. The barrier, state-call, pass and framebuffer counters are atomic. The tracker
+    fallback's scratch belongs to each segment's context.
+  - The per-frame scratch is sized once per plan instance, so a steady-state frame allocates nothing
+    new in the executor (by construction; the allocation tests run serially).
+  - D3D11 records on the calling thread. `RunStatistics::recordTasks` reports the tasks.
+  - A split never crosses a segment (P1.3), so a finely segmented plan has fewer split barriers: the
+    donut frame in eight segments has 53 barriers on D3D12, against 65 in one.
+- **donut prerequisites (10.1).**
+  - `BindingCache::GetOrCreateBindingSet` creates a missed set outside its lock and inserts it under the
+    lock. The first insert wins, and every caller gets that set.
+  - `CommonRenderPasses::BlitTexture` guards its pipeline cache with a shared mutex, creating a missed
+    pipeline outside the lock.
+  - The geometry passes and `MaterialBindingCache` already lock their caches.
+- **Tests:**
+  - `tests/src/render/rdg_worker_pool.h`: a fixed worker pool behind `ParallelForFunction`. The caller
+    works too, a call allocates nothing, and workers spin briefly before they sleep.
+  - `test_render_graph_gpu` gained:
+    - `testParallelRecording`: buffer chains with async fills (one pass per segment), and a chain of
+      32 blits, each by its own `BlitPass` sharing one `CommonRenderPasses`. Four tasks; contents read
+      back.
+    - `testDonutPasses(parallel)`: donut's frame in eight segments by four tasks, six frames, with
+      timers.
+    - `testBindingCacheConcurrency`: eight threads × 16 descriptions × 32 rounds; every thread gets the
+      same set for a description.
+    - `testBlitConcurrency`: four threads blit into four formats with two blend states each, so that
+      the pipeline cache misses on every thread at once. Not on D3D11, whose lists are immediate.
+  - `rdg_bench --parallel d3d12|vulkan [--gate]`: 64 passes (a seed, 62 blits, a copy) recorded on one
+    list and on four threads (16 passes per segment). It measures `RunStatistics::recordMilliseconds`
+    (patches, `Prepare` and recording) per 10.4: Release, no validation layers, 100 warm-up frames,
+    then 300 frames per mode in alternating blocks of 50, medians. The ctest smoke runs are
+    `rdg_bench_parallel_{d3d12,vulkan}` (`--quick`, RUN_SERIAL).
+- **Fixed on the way:**
+  - *Vulkan read-only depth attachments.* nvrhi stored them with `VK_ATTACHMENT_STORE_OP_STORE`, which
+    is a depth-stencil write at the end of rendering that the read-only layout's barriers do not order.
+    Recorded in segments, donut's frame reported it as `SYNC-HAZARD-WRITE-AFTER-WRITE`: Sky's end of
+    rendering against SSAO's restore barrier in an earlier submission. In one list it went unreported.
+    A read-only attachment now stores nothing (`VK_ATTACHMENT_STORE_OP_NONE`, core in Vulkan 1.3).
+    nvrhi's tests have no graphics pipelines, so the parallel donut frame is the regression test.
+- **Deviations from the plan and the design:**
+  1. `RunStatistics::recordTasks` is new, a field of a struct returned by reference.
+  2. The parallel-recording budget is measured on a device, through `rdg_bench --parallel`. 10.3 lists
+     `rdg_bench` as device-free; recording needs command lists.
+  3. The executor does not enforce 10.1's "from 16 passes per segment" rule. The host chooses
+     `recordGranularity`, and the `ExecuteDesc` comment states the rule; the tests use smaller
+     segments to exercise the threads.
+- **Exit:** met. `rdg_bench --parallel` measures four threads at 50.5 % of one list on D3D12 and 37.8 %
+  on Vulkan (budget 60 %). The `BindingCache` and `BlitTexture` concurrency tests pass on every backend
+  that records in parallel; on D3D11, `BindingCache` only.
+
 ## Verification results
 
 **P1.1 (2026-11-05)**, on the NVIDIA RTX 4050 Laptop GPU, Windows 10 19045:
@@ -806,6 +863,22 @@ the GPU across frames, beside the Placed tier.
 | full Debug build | — | everything except WaveWorks (known issues), after applocal reruns |
 | ctest, Debug | — | 61/61 |
 
+**P1.7 (2026-11-05)**, the same machine; each GPU process ran alone.
+
+| Run | Layers confirmed | Result |
+| --- | --- | --- |
+| `test_render_graph_gpu d3d12`, Debug | debug layer and GPU-based validation | PASS, no messages: buffer chains in 4 segments by 4 tasks; 32 blits in 9 segments by 4 tasks; donut's frame in 8 segments by 4 tasks; both concurrency tests |
+| `test_render_graph_gpu vulkan`, Debug | validation layer 1.4.357, `VK_LAYER_VALIDATE_SYNC=1`, hazard probe | PASS after the store-op fix (FAIL before it, as above); only the VVL false positive of P1.6 set aside |
+| `test_render_graph_gpu d3d11`, Debug | nvrhi validation layer | PASS; one task, `BindingCache` from eight threads |
+| `test_render_graph_gpu cuda`, Debug | nvrhi validation layer | PASS; buffer chains by 4 tasks |
+| `rdg_bench --parallel d3d12 --gate`, Release | none (timing run) | one list 150.0 µs, four threads 75.7 µs: 50.5 % (budget 60 %) |
+| `rdg_bench --parallel vulkan --gate`, Release | none (timing run) | one list 129.0 µs, four threads 48.8 µs: 37.8 % (budget 60 %) |
+| `rdg_bench --gate`, Release | — | miss 441 µs (64 passes), 13.5 ms (1024 passes); hit 21.7 µs; 0 allocations; all budgets met |
+| full Release build | — | complete (a rerun after applocal "file in use" link failures) |
+| ctest, Release | — | 63/63: the 61 of P1.6 and `rdg_bench_parallel_{d3d12,vulkan}` |
+| full Debug build | — | everything except WaveWorks (known issues), after an applocal rerun |
+| ctest, Debug | — | 63/63 |
+
 ## Known issues and follow-ups
 
 - **WaveWorks does not build in Debug** (ethereal-samples, since `01b4945`, before this plan). The
@@ -856,3 +929,8 @@ the GPU across frames, beside the Placed tier.
     buffers and other textures too.
   - The Placed tier with enhanced barriers runs device-free only (the RTXMU build above).
   - Exclusion-group members do not share bytes in the actual placement (deviation 3).
+- **P1.7 follow-ups** (parallel recording):
+  - Consecutive segments of one queue with no waits between them could share one submission. Each is
+    submitted alone now, with its own fence signal.
+  - The steady-state allocation test runs serially; a parallel variant would confirm the executor's
+    scratch reuse by measurement.
