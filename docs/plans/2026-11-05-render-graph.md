@@ -1,6 +1,6 @@
 # Render graph (RDG) for donut: implementation
 
-- Status: Approved (2026-11-05). Pass 1 in progress (P1.0-P1.4 done); pass 2 scheduled after it, by the
+- Status: Approved (2026-11-05). Pass 1 in progress (P1.0-P1.5 done); pass 2 scheduled after it, by the
   user's instruction of 2026-11-05.
 - Date: 2026-11-05
 - Design: [`../rdg-design.md`](../rdg-design.md) (Accepted 2026-11-05); decision record
@@ -559,6 +559,97 @@ gained the option that lints it.
   clean validation on all four backends. Steady-state frames make no `create*` call and add no
   allocation. A three-layer history rotates correctly and reports `IsNewAllocation` per layer.
 
+*P1.5 as built (2026-11-05).* donut's passes run in a graph (ethereal-donut `5794e0f`); ethereal-nvrhi gained
+one Vulkan fix (`bfb25e3`).
+- **Bases (13.1).**
+  - The seven `ObjectImpl<IObject>` passes and `IGeometryPass` now derive from `ObjectImpl<IGpuPass>`.
+  - The six passes with no base are reference counted now. No owner in donut or the samples needed
+    changing: those passes are constructed only in their own files. nv_asteroids declares a
+    `shared_ptr<PixelReadbackPass>` but never creates it.
+  - DLSS, LightProbeProcessing, PixelReadback, Manipulator and JointsRender return `FE_UNSUPPORTED` from
+    `Setup`.
+- **Graph entries (13.2, 13.3).** Each is an `AddToGraph(graph, Inputs)` returning the written ids, and
+  its body is the immediate path's code:
+
+  | Pass | Uses | Mode |
+  | --- | --- | --- |
+  | GBufferFill, Depth/shadow, Forward, MaterialID | `IGeometryPass::AddToGraph`, one per child view (a cascade, a cube face) | Tracked |
+  | DeferredLighting | one compute use | Native |
+  | Sky, EnvironmentMap | one raster use per view | Native |
+  | ToneMapping | histogram (transient buffer, cleared), exposure (persistent buffer), one resolve per view | Native |
+  | TAA | motion vectors per view, then the resolve; the feedback is a two-layer history; `feedbackIsValid = !IsNewAllocation(previous)` | Native |
+  | SSAO | one use; the deinterleaved arrays are pass-local transients | Restore |
+  | Bloom | per view: two downscales, two blurs, a blended apply, on transients | Native |
+  | MipMapGen | one use: reads mip 0, writes the others | Restore |
+  | Blit | the new `BlitPass`, over `CommonRenderPasses::BlitTexture` | Native |
+
+  - Graph constructions (Sky, ToneMapping, TAA, SSAO, Bloom, EnvironmentMap, MipMapGen) take no target.
+    They create nothing until `Prepare`, which makes their shader variants and pipelines from the graph's
+    framebuffer and descriptions. DeferredLighting and the geometry passes keep `Init`.
+  - The geometry passes' pipeline caches recreate a pipeline when the framebuffer formats change,
+    instead of asserting (13.3).
+- **App (13.4, 11.3).**
+  - `app::RenderGraphLayer` resets the graph, clears `FrameData`, imports the back buffer (host-kept),
+    calls `BuildGraph`, then compiles and executes. Pass toggles by name are resolved through the last
+    plan. A resize releases the pooled memory.
+  - `app::RenderGraphVisualizer` is an `ImGuiLayer`. It shows statistics, timers, passes with their
+    barriers and reasons, lifetimes with heap placement, the debug switches and pass toggles.
+    `DrawWindow` embeds it in another UI layer.
+  - Per-pass GPU timers (`ExecuteDesc::timers`): timer queries in a ring of four frames, read back when
+    they complete. The copy queue is not timed.
+  - Run statistics: record and submit times, passes, segments, barriers and tracker calls.
+- **Tests:**
+  - `test_render_graph_passes`, device-free, using `tests/src/render/rdg_donut_frame.*`:
+    - one frame of every graph entry on a null device, 22 uses, compiled and verified on all five
+      barrier profiles;
+    - golden access lists on D3D12 legacy (`golden/pass_accesses.txt`, with each pass's mode);
+    - per-view folding: two Bloom chains over a stereo view share physical textures;
+    - an unsupported pass, which `AddPass` and `Compile` name.
+  - `test_render_graph_gpu` executes the same frame for six frames on D3D11, D3D12 and Vulkan under
+    validation, with timers and run statistics checked.
+  - `test_render_graph_layer {d3d11,d3d12,vulkan}` runs `RenderGraphLayer` on a headless
+    DeviceManager. It covers toggles (with passthrough), a resize and statistics.
+  - nvrhi `explicit_barriers_vulkan` gained a depth texture sampled on the compute queue. Without the
+    fix below it reports `VUID-vkCmdPipelineBarrier2-dstStageMask-09676`.
+- **Fixed on the way:**
+  - *Vulkan sampled depth.* nvrhi samples a depth texture in `eDepthStencilReadOnlyOptimal`
+    (`ShaderResource | DepthRead`), and its descriptors declare that layout. On Vulkan the graph now
+    lowers a shader read of a depth or stencil texture to that pair; the queue rule accepts it on the
+    compute queue.
+  - nvrhi's Vulkan `barriers()` drops graphics-only stages and accesses on a compute or copy queue. The
+    6.11 golden lists change accordingly: one fewer read-group change on Vulkan.
+  - *D3D12 legacy discards.* `DiscardResource` takes a render-target texture only in RENDER_TARGET and a
+    depth texture only in DEPTH_WRITE. A texture that is both render target and UAV is no longer
+    discarded in UAV state, and the verifier checks the rule.
+  - *Tracked and Restore.* They track the plan's actual state (`PlanTrackedState`, per pass), which a
+    merged read group widens beyond the pass's own access. They used to declare the narrower state.
+  - *MipMapGen null textures.* They are per pass object now: a process-wide static outlived its device
+    at exit and gave the first device's textures to every other device. They are in the target's format,
+    as Vulkan storage images require.
+  - `ReleaseResources` calls `OnResourcesReleased` on the current frame's passes, once per object (P1.4
+    deviation 3).
+  - The dump lists each pass's type, mode and declared uses.
+  - `GetPlanHash` is the cache key (structural hash, profile, options), not the structural hash.
+- **Deviations from the plan and the design:**
+  1. `ISetupContext::SetDepthTarget` takes a region, like `SetColorTarget`. 13.3 runs DepthPass once per
+     shadow-map slice, which needs one; design 12's signature has none (an ABI change).
+  2. `IRenderGraph::GetTextureDesc` and `GetBufferDesc`, so that a pass sizes its transients from its
+     inputs. They copy no debug name, so recording still allocates nothing.
+  3. `IResourceRegistry::GetRunStatistics`, `GetPassTimingCount` and `GetPassTiming`, with the
+     `RunStatistics` and `PassTiming` structs, for 11.3. The run statistics count tracker calls, not
+     allocations.
+  4. The geometry passes share one `IGeometryPass::AddToGraph` rather than one entry each, so sample
+     subclasses (VXGI's `VoxelShadingPass`) get it too. They stay Tracked; 13.3's "then Native" is a
+     follow-up.
+  5. Blit is a new `BlitPass` class. EnvironmentMap is in the graph too: 13.3 lists it, the plan's list
+     did not.
+  6. SSAO's graph construction takes no `CreateParameters`; its shader options come per `AddToGraph`.
+  7. The Visualizer is compiled and linked but not run: there is no windowed test. Pass 2's samples
+     show it.
+- **Exit:** met. donut and every sample build; WaveWorks still fails in Debug only (known issues). The
+  device-free golden access lists pass. A headless frame of every pass type runs clean on three
+  backends. The immediate entry points are unchanged; their bodies are now shared with the graph path.
+
 ## Verification results
 
 **P1.1 (2026-11-05)**, on the NVIDIA RTX 4050 Laptop GPU, Windows 10 19045:
@@ -603,6 +694,22 @@ gained the option that lints it.
 | full Debug build | — | everything except the 5 WaveWorks steps (known issues) |
 | ctest, Debug | — | 57/57 |
 
+**P1.5 (2026-11-05)**, the same machine; each GPU test ran alone.
+
+| Run | Layers confirmed | Result |
+| --- | --- | --- |
+| `test_render_graph_gpu d3d12`, Debug | debug layer and GPU-based validation | PASS: the frame of every pass (22 uses, 65 barriers) for six frames, no messages; 22 pass timings |
+| `test_render_graph_gpu vulkan`, Debug | validation layer, `VK_LAYER_VALIDATE_SYNC=1`, hazard probe | PASS: the same frame (64 barriers), no messages |
+| `test_render_graph_gpu d3d11` and `cuda`, Debug | nvrhi validation layer | PASS (CUDA runs the non-raster tests) |
+| `test_render_graph_layer` d3d11, d3d12, vulkan, Debug | DeviceManager with the debug runtime, GPU-based validation on D3D12, and the nvrhi validation layer; no error logged | PASS |
+| `nvrhi_explicit_barrier_tests vulkan`, Debug | as in P1.1 | PASS, with the compute-queue depth test; FAIL with the fix reverted (`VUID-vkCmdPipelineBarrier2-dstStageMask-09676`) |
+| `test_render_graph`, `test_render_graph_passes`, Debug and Release | — | 31/31 and 3/3; the 6.11 golden lists change as described above |
+| `rdg_bench --gate`, Release | — | miss 449 µs (64 passes), 13.5 ms (1024 passes); hit 21.6 µs; 0 allocations; all budgets met |
+| full Release build | — | complete (reruns after applocal "file in use" link failures) |
+| ctest, Release | — | 61/61: the 57 of P1.4, `test_render_graph_passes`, three `test_render_graph_layer_*` |
+| full Debug build | — | everything except WaveWorks (known issues) and one applocal flake |
+| ctest, Debug | — | 61/61 |
+
 ## Known issues and follow-ups
 
 - **WaveWorks does not build in Debug** (ethereal-samples, since `01b4945`, before this plan). The
@@ -637,4 +744,11 @@ gained the option that lints it.
     above.
   - The Vulkan per-aspect attachment layouts above are not exercised by the GPU test: no pass reads
     depth while it writes stencil.
-  - P1.5: `OnResourcesReleased` for the current frame's passes (deviation 3); per-pass timers.
+- **P1.5 follow-ups** (passes):
+  - The geometry passes in Native mode (13.3): their scene buffers and material textures need declaring
+    or importing first.
+  - P1.7: a pass's per-view uses share its draw strategy and pass context, so a parallel recorder keeps
+    them on one thread or gives each its own.
+  - Persistent and history names of pass objects (ToneMapping's exposure, TAA's feedback) carry a
+    per-process instance number. They are stable within a process, not across processes.
+  - The Visualizer runs in pass 2's samples; no test drives it.
