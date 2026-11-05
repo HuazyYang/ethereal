@@ -847,6 +847,73 @@ one Vulkan fix (`4b1437a`).
 - **Exit:** met. Reference images and timings, with commit hashes, are above; `ab_compare.py` reports
   identical for two captures of the same build.
 
+*P2.1 as built (2026-11-05).* `deferred_shading_rdg` (ethereal-samples `d40ee50`) and two executor fixes it
+found (ethereal-donut `57db135`).
+- **The sample.** It has the scene, view and passes of `deferred_shading`, recorded each frame on
+  `app::RenderGraphLayer` through `GBufferFillPass`, `DeferredLightingPass` and `BlitPass`
+  `AddToGraph`.
+  - The G-buffer and the shaded colour are transients; the back buffer is the layer's import.
+  - Per-pass GPU timers are on. `RenderGraphVisualizer` shows the plan in interactive runs, but not in
+    the harness's deterministic ones, where it would draw over the image.
+  - The measurement switches:
+    - `-graphstats F`: the layer's frame cost (BuildGraph, Compile, Execute), the executor's record
+      and submit time, and barriers per frame;
+    - `-nocache`: `maxCachedPlans = 0`;
+    - `-emptybodies`: the same graph with empty pass bodies;
+    - `-notimers`.
+- **Fixed on the way (donut):**
+  - *D3D11 frames.* The executor signalled a fence on every submission, a `Signal` in the immediate
+    context, which cost the D3D11 frame 10 % of its CPU and GPU time. D3D11 has one in-order queue, so
+    the executor now tracks frames with the `IEventQuery` fallback of P1.4. This is the first time
+    that fallback runs. It uses a ring of three queries, each read before it is ended again; D3D11
+    warned about abandoned results with one. The layer's own D3D11 cost fell from 0.078 to 0.021 ms.
+  - *D3D12 legacy discards.* A transient whose first use is a clear is no longer discarded first.
+    `DiscardResource` is a command of its own, and the clear initializes the subresources (a placed
+    render target or depth texture may start with either). Enhanced barriers and Vulkan keep the
+    discard, which leaves the undefined layout. The 6.11 golden lists lose those flags.
+- **Results** (Release, NVIDIA adapter, `-fixedstep`; timing runs `-frames 401 -warmup 100`, 300
+  frames; the baseline is P2.0's build of the main checkout's commits):
+  - *Images:* identical to the references on D3D11, D3D12 and Vulkan (`ab_compare.py`, 0 differing
+    pixels), before and after the fixes.
+  - *Validation:* 120 Debug frames on each API with zero messages: the D3D12 debug layer, the Vulkan
+    validation layer with `VK_LAYER_VALIDATE_SYNC=1`, and the D3D11 debug layer. Each layer's DLL
+    was seen in the process.
+  - *Barriers per frame:*
+
+    | API | Original (native capture) | Graph |
+    | --- | --- | --- |
+    | D3D12 | 15 (RenderDoc) | 14 (RenderDoc and `RunStatistics`, equal) |
+    | Vulkan | 27 image barriers (RenderDoc) | 19 (`RunStatistics`) |
+    | D3D11 | implicit | implicit |
+
+    Each graph barrier carries its reason in the plan (dump and visualizer).
+  - *Frame times,* timers off, medians over alternating rounds (8 rounds on D3D12 and Vulkan, 6 on
+    D3D11 after the fixes); per-run medians, then their median (and minimum):
+
+    | API | CPU frame, ms: original / graph | GPU frame, ms: original / graph |
+    | --- | --- | --- |
+    | D3D12 | 0.305 (0.299) / 0.301 (0.295) | 0.175 (0.174) / 0.176 (0.175) |
+    | Vulkan | 0.275 (0.274) / 0.274 (0.270) | 0.210 (0.210) / 0.207 (0.206) |
+    | D3D11 | 0.375 (0.374) / 0.380 (0.378) | 0.266 (0.265) / 0.265 (0.265) |
+
+  - *Executor overhead* with empty bodies (record and submit, barriers and clears included): 0.025 ms
+    on Vulkan, 0.041 ms on D3D12, 0.004 ms on D3D11 (budget 0.2 ms).
+  - *Plan cache (7.7):* the layer's frame cost is 0.069 ms with the cache and 0.112 ms without on
+    D3D12; 0.054 and 0.104 ms on Vulkan; 0.021 and 0.054 ms on D3D11. The cache stays.
+  - *Timers:* per-pass timers add 0.016 ms to the layer on D3D12 and 0.002 ms on D3D11.
+- **Deviations:**
+  1. The frame-time comparison runs with `-notimers`. The original has no per-pass timers, and on
+     D3D11 timer queries cost both CPU and GPU time.
+  2. Two budgets are met within noise rather than strictly. D3D12's GPU frame is 0.001 ms (0.6 %)
+     above the original, while frame-to-frame clock changes on this laptop GPU reach 40 %. D3D11's CPU
+     frame is 0.005 ms (1.3 %) above it in every round: the graph's fixed per-frame work (recording,
+     plan lookup, bookkeeping) has no barrier tracking to save there, unlike D3D12 and Vulkan, where
+     the graph is at or below the original.
+  3. The Vulkan barrier comparison counts the graph through `RunStatistics`. That count matched
+     RenderDoc's exactly on D3D12.
+- **Exit:** met, with deviation 2. Images are identical, validation is clean, barriers are fewer, the
+  executor overhead is within budget, and the cache is kept on its numbers.
+
 ## Verification results
 
 **P1.1 (2026-11-05)**, on the NVIDIA RTX 4050 Laptop GPU, Windows 10 19045:
@@ -996,7 +1063,7 @@ The executor overhead, barrier, frame-time and memory budgets need the samples: 
   - `ScheduleFlags::GroupReads` does not reorder yet.
 - **P1.4 follow-ups** (executor):
   - The `IEventQuery` fallback for D3D11 without fences is not exercised on this machine: its D3D11
-    has 11.4 fences.
+    has 11.4 fences. (Since P2.1 every D3D11 run uses it.)
   - The enhanced-barrier path is verified device-free only; the GPU run needs the Agility SDK build
     above.
   - The Vulkan per-aspect attachment layouts above are not exercised by the GPU test: no pass reads
