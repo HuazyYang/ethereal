@@ -1,6 +1,6 @@
 # Render graph (RDG) for donut: implementation
 
-- Status: Approved (2026-11-05). Pass 1 in progress (P1.0-P1.7 done); pass 2 scheduled after it, by the
+- Status: Approved (2026-11-05). Pass 1 done and verified (P1.0-P1.7); pass 2 in progress, scheduled by the
   user's instruction of 2026-11-05.
 - Date: 2026-11-05
 - Design: [`../rdg-design.md`](../rdg-design.md) (Accepted 2026-11-05); decision record
@@ -878,6 +878,35 @@ one Vulkan fix (`4b1437a`).
 | ctest, Release | — | 63/63: the 61 of P1.6 and `rdg_bench_parallel_{d3d12,vulkan}` |
 | full Debug build | — | everything except WaveWorks (known issues), after an applocal rerun |
 | ctest, Debug | — | 63/63 |
+
+**Pass 1 verification (2026-11-05)** at ethereal-nvrhi `4b1437a`, ethereal-donut `df5dd96`, ethereal-samples
+`d5bad16` (aggregate `20e50bd`), on the NVIDIA RTX 4050 Laptop GPU, Windows 10 19045. Each GPU process ran
+alone. The builds, ctest runs, donut GPU tests and benchmarks are those of P1.7, at the same commits.
+
+| Item | Run | Result |
+| --- | --- | --- |
+| Builds | full Release and Debug builds of the worktree | Release complete; Debug complete except WaveWorks (known issues); applocal "file in use" flakes rerun |
+| ctest | Release and Debug | 63/63 each |
+| nvrhi GPU tests | `nvrhi_explicit_barrier_tests d3d12`, Debug | PASS; "the D3D12 debug layer is loaded (ID3D12InfoQueue)", `enhanced barriers: 0` |
+| | `nvrhi_explicit_barrier_tests vulkan`, Debug | PASS; "the Vulkan validation layer is loaded", the deliberate hazard reported as `SYNC-HAZARD-WRITE-AFTER-WRITE` |
+| donut GPU tests | `test_render_graph_gpu` d3d12, vulkan, d3d11, cuda, Debug | PASS on all four (P1.7 table); `test_render_graph_layer_*` in ctest |
+| Sample smoke runs | `deferred_shading -d3d12`, Debug, 25 s, closed through its window | exit 0; `D3D12SDKLayers.dll` loaded; no warning or error in its debug output |
+| | `deferred_shading -vk`, Debug, 25 s | exit 0; `VkLayer_khronos_validation.dll` (SDK 1.4.357) loaded; no warning or error |
+| Samples | every sample target | builds in Release; in Debug all but WaveWorks |
+
+10.3 budgets that need no sample:
+
+| Budget | Measured | Result |
+| --- | --- | --- |
+| Compile on a miss, 64 passes / 256 resources, ≤ 1 ms | `rdg_bench --gate`, Release, D3D12 legacy profile | 441 µs |
+| Compile on a miss, 1024 passes, ≤ 16 ms | the same | 13.5 ms |
+| Frame on a cache hit, 64 passes, ≤ 0.05 ms | the same | 21.7 µs |
+| Frame without the cache, 64 passes (reported) | the same | 508 µs |
+| Heap allocations per steady-state frame, 0 | the same (device-free); `test_render_graph_gpu` steady state on the GPU | 0; on the GPU recording and the cached compile allocate nothing and execution matches the same nvrhi calls by hand |
+| `create*` calls per steady-state frame, 0 | `test_render_graph_gpu` steady state, all four backends | 0 in 32 frames |
+| Parallel recording, 64 passes, 4 threads, ≤ 60 % of one list | `rdg_bench --parallel`, Release | D3D12 50.5 % (75.7 / 150.0 µs); Vulkan 37.8 % (48.8 / 129.0 µs) |
+
+The executor overhead, barrier, frame-time and memory budgets need the samples: P2.1-P2.4.
 
 ## Known issues and follow-ups
 
