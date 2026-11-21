@@ -1,6 +1,6 @@
 # FrameGraph for donut
 
-- Status: Draft
+- Status: Abandoned (2026-10-20): superseded by a new design, [ADR 0003](../adr/0003-render-graph-for-donut.md) and [`../rdg-design.md`](../rdg-design.md). The `framegraph` branches are not reused.
 - Date: 2026-10-04
 
 ## Context
