@@ -91,3 +91,4 @@ Commits (with repository), files, related ADRs and plans.
 | --- | --- | --- | --- |
 | [0001](0001-snake-case-directory-names.md) | Directory names are `snake_case` | Proposed | 2026-10-04 |
 | [0002](0002-query-cast-replaces-dynamic-cast-in-donut-and-samples.md) | `query_cast` replaces `dynamic_cast` in donut and the samples | Accepted | 2026-10-10 |
+| [0004](0004-ecs-under-the-scene-graph.md) | A data-oriented world under donut's scene graph | Accepted | 2026-11-21 |
