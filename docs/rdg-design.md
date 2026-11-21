@@ -1,6 +1,7 @@
 # Render graph (RDG) for donut: design
 
-- Status: Accepted (2026-11-05)
+- Status: Accepted (2026-11-05). Amended 2026-11-21: queue lanes on CUDA queue pools (6.8, 9.2, 12;
+  nvrhi ADR 0016; [`plans/2026-11-21-cuda-queue-pools.md`](plans/2026-11-21-cuda-queue-pools.md)).
 - Date: 2026-10-21; rebased onto the ethereal-dev RHI on 2026-11-01
 - Decision record: [ADR 0003](adr/0003-render-graph-for-donut.md)
 - Plan: [`plans/2026-11-05-render-graph.md`](plans/2026-11-05-render-graph.md)
@@ -716,17 +717,35 @@ instantiated and kept while the plan's hash is unchanged.
 
 ### 6.8 Queues
 
-**No queue object.** Async compute uses what the RHI already has: an `ICommandList` created with
-`queueType = CommandQueue::Compute` carries the compute queue's work and is submitted to that queue.
-On CUDA each `CommandQueue` is a `CUstream`, so a compute command list is replayed onto the compute
-stream.
+**Queues and lanes.** Async compute uses an `ICommandList` created with
+`queueType = CommandQueue::Compute`, which carries the compute queue's work and is submitted to that
+queue. nvrhi ADR 0016 (amended 2026-11-21) adds `ICommandQueue` objects:
+- Every backend has one queue per `CommandQueue` type.
+- A CUDA device may keep a pool of queues (streams) per type (`cuda::DeviceDesc::queueCounts`). A
+  recording binds to a queue of its pool at `open()`, or to the queue it is pinned to
+  (`CommandListParameters::commandQueue`).
+- `ComputeBackendProfile` reports the pool sizes as `BackendProfile::queueLanes`, which is 1 on every
+  other backend.
+
+With more than one lane of a type, independent passes of that type spread over the lanes:
+- **Assignment.** A pass takes the lane of its latest producer on its own queue, so a chain stays on
+  one stream. A pass that depends on nothing of its queue starts on the least-loaded lane.
+- **Stability.** Lanes are assigned in the structure phase, over the superset, so every mask of a
+  structure has the same lanes. `DebugFlags::SerializeQueues` keeps every pass on lane 0.
+- **Streams.** A stream is a (queue, lane) pair. Segments, fence waits, what each stream has
+  observed, the cross-queue rules of 7.4 and the pooled slots all key on streams. A resource used on
+  two lanes of one queue is cross-queue.
+- **Legality.** State legality keys on the queue, since the lanes of a type are alike.
+- **Verifier.** The verifier models every stream as a queue of its own.
+- **Executor.** Each stream's lists are pinned to `getCommandQueue(type, lane)`, so `open()` cannot
+  pick another queue of the pool.
 
 **Declaring async passes.** Async-compute passes are declared, never inferred. A pass with
 `PassFlags::AsyncCompute` runs on the compute queue when the profile has one. Otherwise it is demoted
 to graphics, with a diagnostic.
 
-**Cross-queue synchronisation** uses the timeline `IFence` of 8.3, one fence per queue, owned by the
-registry:
+**Cross-queue synchronisation** uses the timeline `IFence` of 8.3, one fence per queue (per stream
+where there are lanes), owned by the registry:
 - the producer segment's submit signals `(fence[q], ++value[q])`;
 - the consumer segment's submit waits for that value;
 - a consumer that depends on several producer segments of one queue waits only for the highest value,
@@ -777,10 +796,16 @@ next on that queue. The legacy hit this trap with `queueWaitForCommandList`. The
   imported (14.5). The application issues the interop wait before `Execute`, and the import's
   first-use prologue assumes it has happened.
 
-**CUDA.** Cross-stream waits go through the same `IFence`. There are no transitions. Each
-`CommandQueue` is one non-blocking stream, and work is ordered only by stream submission and
-events, so the plan's fence values are the only cross-queue order (2.1). A CUDA `submit` replays
-recorded lists, so its waits and signals are enqueued around the replay on the queue's stream.
+**CUDA.** Cross-stream waits go through the same `IFence`. There are no transitions. Each queue is
+one non-blocking stream: one per `CommandQueue` by default, or a pool per type (nvrhi ADR 0016).
+Work is ordered only by stream submission and events, so the plan's fence values are the only order
+between streams (2.1). A CUDA `submit` replays recorded lists, so its waits and signals are enqueued
+around the replay on the bound queue's stream.
+- Each queue of a pool loads its own modules, because Slang's `SLANG_globalParams` is constant
+  memory, which a shared module would race on.
+- The pools give each lane independent ordering. Whether two lanes also run concurrently depends on
+  the platform. On an RTX 4050 Laptop GPU under WDDM without hardware-accelerated GPU scheduling, two
+  streams did not overlap (ADR 0016).
 
 ### 6.9 Render targets
 
@@ -1411,7 +1436,7 @@ The executor then handles each segment in order:
 | Planes | plane slices | aspect masks | ignored | ignored |
 | Split barriers | yes | events, policy-limited | no | no |
 | Memory tier | Placed | Pooled, then Placed after the `memoryTypeBits` fix | Pooled | Pooled (CUDA virtual memory later) |
-| Queues | graphics, compute, copy | graphics, compute, copy (families, ownership transfer) | graphics only; async demoted | one stream per `CommandQueue` |
+| Queues | graphics, compute, copy | graphics, compute, copy (families, ownership transfer) | graphics only; async demoted | one stream per `CommandQueue`, or a pool of streams per type: `queueLanes` (6.8) |
 | Cross-queue sync | `IFence` (`ID3D12Fence`) | `IFence` (timeline semaphore) | none needed | `IFence` (event ring) |
 | Pass types | all | all | Raster, Compute, Copy | Compute, Copy, RayTracing (OptiX); Raster is a compile error |
 | Back buffer | host-kept; `beginFrame` waits on the CPU | host-kept; acquire queued on the graphics queue | host-kept | host-kept CUDA texture; no window |
@@ -1815,8 +1840,10 @@ arguments. Callers pass `{}` for a whole resource and `ResourceFlags::None` expl
 The rest of the header follows the same style:
 - `BackendProfile`, `CompileOptions` and `ExecuteDesc` are plain structs. `CompileOptions` holds
   `placedResources`, `maxCachedPlans` and `debugFlags` (7.5, 7.7, 11.4). `ExecuteDesc` holds the
-  task-scheduler callback and the timer switch.
-- `ICompiledRenderGraph` provides queries and the dump.
+  task-scheduler callback and the timer switch. `BackendProfile::queueLanes[3]` gives the lanes per
+  queue (6.8); `ReferenceProfile::CUDAOverlapped` is CUDA with two graphics and two compute lanes.
+- `ICompiledRenderGraph` provides queries and the dump. `ScheduledPass::lane` names a pass's lane, and
+  `PlanStatistics::streams` counts the (queue, lane) streams that run segments.
 - `IResourceRegistry` holds persistent resources, the plan cache, the pools and caches, the fences
   and retirement.
 
